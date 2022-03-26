@@ -1,0 +1,92 @@
+http://cs231n.stanford.edu
+
+========
+https://askubuntu.com/questions/865792/how-can-i-monitor-the-tbw-on-my-samsung-ssd
+
+========
+df.to_csv(‘foo.txt’, quoting=csv.QUOTE_NONE, sep=‘;’)
+
+========
+import sys
+reload(sys)
+sys.setdefaultencoding('utf-8')
+pd_items.to_csv('cat_type.csv', index=None)
+
+========
+model = models.resnet152(pretrained=True)
+newmodel = torch.nn.Sequential(*(list(model.children())[:-1]))
+
+=======
+pd.set_option('display.max_rows', 200)
+pd.set_option('display.max_columns', 20)
+pd.set_option('display.width', 250)
+pd.set_option('max_colwidth', 100) (edited) 
+
+========
+# override show method to limit(n).toPandas()
+from pyspark.sql.dataframe import DataFrame
+def show(self, n=5):
+   return self.limit(n).toPandas()
+DataFrame.show = show
+
+========
+conda install -c conda-forge conda-pack
+conda create -y -n example python=3 numpy pandas scikit-learn scipy pyarrow
+conda pack -n example -o example.tar.gz
+import os
+os.environ["PYSPARK_PYTHON"] = "example/bin/python"
+sc = SparkSession.builder.config(
+    conf=(
+        SparkConf()
+        .setMaster("yarn")
+        .setAppName("uvarov")
+        .set("spark.yarn.queue", "cyan")
+        .set("spark.yarn.dist.archives", "/home/user/example.tar.gz#example")
+        .set("spark.dynamicAllocation.minExecutors", "8")
+        .set("spark.dynamicAllocation.maxExecutors", "12")
+    )
+).enableHiveSupport().getOrCreate()
+
+========
+ps aux --sort=-pmem | head -n 5
+ps aux --sort=-pcpu | head -n 5
+
+========
+create table db.table engine MergeTree order by col1 as select *, arrayMap(x -> replaceOne(x, 'https://', '/home/user/'), images) as paths from db.table1
+create table db.table engine MergeTree order by col1 as select *, arrayMap(x -> '/home/user' || path(x), images) as paths from db.table1
+create table db.table engine MergeTree order by col1 as select * from hdfs('hdfs://nn01.name.ru:8020/databases/db.db/table/*json', 'JSONEachRow', 'col1 Int, col2 Array(String), col3 String)
+
+========
+git tag v0.0.1 && git push origin v0.0.1
+
+========
+alias docker-work='docker run -it --rm --gpus=all --net=host -v /etc/passwd:/etc/passwd -v /etc/group:/etc/group -u $(id -u):$(id -g) -v `pwd`:`pwd` -w `pwd` gitlab-registry.name.ru/ds/gpu-base-image:latest'
+docker-work jupyter notebook --ip 0.0.0.0
+docker-work # bash.
+
+========
+ps -o ppid= -p 20224
+1459 ?        Ssl  354:27 /usr/bin/containerd
+
+========
+# spark histograms
+bins, counts = df.filter(f.col('p') >= 0.9).select('p').rdd.flatMap(lambda x: x).histogram(10)
+plt.hist(bins[:-1], bins=bins, weights=counts)
+
+========
+f.from_json("categories", schema="`2` string")["2"].alias("cat2")
+
+========
+# change repo origin
+$ git remote rm origin
+$ git remote add origin git@github.com:aplikacjainfo/proj1.git
+$ git config master.remote origin
+$ git config master.merge refs/heads/master
+
+========
+s3cmd setacl --acl-private --recursive s3://mybucket-name
+s3cmd setacl --acl-private --recursive s3://mybucket-name/folder-name
+s3cmd setacl --acl-private --recursive s3://mybucket-name/folder-name/object-name
+s3cmd setacl --acl-public --recursive s3://mybucket-name
+s3cmd setacl --acl-public --recursive s3://mybucket-name/folder-name
+s3cmd setacl --acl-public --recursive s3://mybucket-name/folder-name/object-name
