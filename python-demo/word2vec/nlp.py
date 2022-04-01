@@ -5,6 +5,30 @@ import re
 import string
 
 
+def levenshtein(s1, s2):
+    DEL = 1
+    INS = 1
+    SWAP = 1
+    
+    dist = np.zeros((len(s1) + 1, len(s2) + 1), dtype=int)
+    
+    for i in range(1, len(s1) + 1):
+        dist[i, 0] = dist[i - 1, 0] + INS
+    
+    for j in range(1, len(s2) + 1):
+        dist[0, j] = dist[0, j - 1] + INS
+    
+    for i in range(1, len(s1) + 1):
+        for j in range(1, len(s2) + 1):
+            dist[i, j] = min(
+                dist[i, j - 1] + INS,
+                dist[i - 1, j] + DEL,
+                dist[i - 1, j - 1] + (SWAP if s1[i - 1] != s2[j - 1] else 0)
+            )
+
+    return dist[-1, -1]
+
+
 class Tokenizer:
     def __init__(self):
         self.table = str.maketrans(
