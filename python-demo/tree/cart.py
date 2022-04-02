@@ -1,46 +1,44 @@
-import numpy as np
 from collections import Counter
 
+import numpy as np
 
-class Leaf():
+
+class Leaf:
     def __init__(self, y):
         counts = Counter(y)
-        
         self.label = None
-        maxcount = 0
-        
         self.label = max(counts.keys(), key=lambda x: counts[x])
     
     def predict(self, _):
-        return(self.label)
+        return self.label
     
     
-class Node():
+class Node:
     def __init__(self):
         self.threshold = None
         self.num = None
         self.rleaf = None
         self.lleaf = None
         
-    def predict(self, X):
-        if X[self.num] <= self.threshold:
-            return self.lleaf.predict(X)
+    def predict(self, x):
+        if x[self.num] <= self.threshold:
+            return self.lleaf.predict(x)
         else:
-            return self.rleaf.predict(X)
+            return self.rleaf.predict(x)
         
-    def fit(self, X, y):
-        num_features = X.shape[1]
-        data = np.hstack([X, y.reshape(-1, 1)])
+    def fit(self, x, y):
+        num_features = x.shape[1]
+        data = np.hstack([x, y.reshape(-1, 1)])
         y0 = y[0]
-        del X, y
+        del x, y
         
         thr = np.zeros(num_features)
         gini = np.zeros(num_features)
         
-        def calc_gini(y):
-            if (y.size == 0):
+        def calc_gini(vals):
+            if vals.size == 0:
                 return 0
-            c = Counter(y)
+            c = Counter(vals)
             return max(c.values())
         
         # Try to find best partitioning over all features
@@ -51,7 +49,8 @@ class Node():
 
             # For all unique feature values
             for k, j in enumerate(feat_values):
-                # Count max length of classes in left and in right branches, take WORST (minimal) value
+                # Count max length of classes in left and in right branches,
+                # take WORST (minimal) value
                 g_l = calc_gini(data[data[:, i] <= j][:, -1])
                 g_r = calc_gini(data[data[:, i] > j][:, -1])
                 thresholds[k] = j
@@ -68,9 +67,9 @@ class Node():
         # Divide data
         data_l = data[data[:, self.num] <= self.threshold]
         data_r = data[data[:, self.num] > self.threshold]
-        X_l = data_l[:, 0:-1]
+        x_l = data_l[:, 0:-1]
         y_l = data_l[:, -1]
-        X_r = data_r[:, 0:-1]
+        x_r = data_r[:, 0:-1]
         y_r = data_r[:, -1]
         del data_l, data_r
         
@@ -83,26 +82,26 @@ class Node():
             self.lleaf = Leaf(y_l)
         else:
             self.lleaf = Node()
-            self.lleaf.fit(X_l, y_l)
+            self.lleaf.fit(x_l, y_l)
             
         if len(np.unique(y_r)) <= 1:
             self.rleaf = Leaf(y_r)
         else:
             self.rleaf = Node()
-            self.rleaf.fit(X_r, y_r)
+            self.rleaf.fit(x_r, y_r)
         return
     
 
-class Tree():
+class Tree:
     def __init__(self):
         self.root = Node()
         
-    def fit(self, X, y):
-        self.root.fit(X, y)
+    def fit(self, x, y):
+        self.root.fit(x, y)
         return
     
-    def predict(self, X):
-        y = np.zeros(X.shape[0])
-        for i in range(X.shape[0]):
-            y[i] = self.root.predict(X[i, :])
+    def predict(self, x):
+        y = np.zeros(x.shape[0])
+        for i in range(x.shape[0]):
+            y[i] = self.root.predict(x[i, :])
         return y
