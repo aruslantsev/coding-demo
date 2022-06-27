@@ -1,14 +1,25 @@
+from typing import List, Union, Tuple
+
 import matplotlib.pyplot as plt
+import numpy as np
+import torch
+import torchvision
+from PIL import Image
 
 
-def plot_lst(img_list):
+def plot_lst(img_list: List[Union[Image.Image, np.array]]) -> None:
     fig, ax = plt.subplots(nrows=1, ncols=len(img_list))
     for i, img in enumerate(img_list):
         plt.imshow(img)
         ax[i].imshow(img, cmap="gray")
     plt.show()
-    
-def test_model(indexes, model, image_transforms, mnist):
+
+
+def test_model(
+        indexes: List[int],
+        model: torch.nn.Module,
+        image_transforms: torchvision.transforms,
+        mnist: torchvision.datasets):
     images = []
     model_images = []
     for idx in indexes:
@@ -18,15 +29,22 @@ def test_model(indexes, model, image_transforms, mnist):
         model_images.append(model_image)
     plot_lst(images)
     plot_lst(model_images)
-    
-def train_test_model(model, optimizer, loss_fn, dataloader, mode="train"):
+
+
+def train_test_model(
+        model: torch.nn.Module,
+        optimizer: torch.optim,
+        loss_fn: torch.nn.Module,
+        dataloader: torch.utils.data.DataLoader,
+        mode: str = "train"
+) -> Tuple[torch.nn.Module, torch.optim, float]:
     if mode == "train":
         model.train()
     else:
         model.eval()
         
     total_loss = 0
-    for images, labels in trainloader:
+    for images, labels in dataloader:
         if mode == "train":
             optimizer.zero_grad()
         _, model_images = model(images)
