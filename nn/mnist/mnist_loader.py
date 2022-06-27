@@ -20,7 +20,7 @@ class MNISTDataset(Dataset):
     
     def __getitem__(self, idx) -> Tuple[torch.tensor, torch.tensor]:
         img, label = self.mnist[self.lst[idx]]
-        img = self.transforms(img).squeeze(0)
+        img = self.transforms(img)
         label = torch.tensor(label)
         return img, label
 

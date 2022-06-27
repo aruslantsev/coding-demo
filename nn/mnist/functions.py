@@ -24,8 +24,9 @@ def plot_images(
     model_images = []
     for idx in indexes:
         image = image_transforms(mnist[idx][0])
-        images.append(image.detach().numpy()[0])
-        model_image = model(image)[1].detach().numpy()[0]
+        initial_image = image.detach().numpy()[0]
+        images.append(initial_image)
+        model_image = model(image)[0].squeeze(0).detach().numpy()[0]
         model_images.append(model_image)
     plot_lst(images)
     plot_lst(model_images)
@@ -47,7 +48,7 @@ def train_test_model(
     for images, labels in dataloader:
         if mode == "train":
             optimizer.zero_grad()
-        _, model_images = model(images)
+        model_images, _ = model(images)
         loss = loss_fn(model_images, images)
         if mode == "train":
             loss.backward()
