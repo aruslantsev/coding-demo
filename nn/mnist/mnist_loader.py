@@ -1,4 +1,4 @@
-from typing import Tuple, Optional, List
+from typing import Any, Tuple, Optional, List
 
 import numpy as np
 import torch
@@ -27,13 +27,13 @@ class MNISTDataset(Dataset):
 
 def train_test_split(
         train_ratio: int = 0.8,
-        mnist: Optional[torchvision.datasets] = None
+        mnist: Optional[Any] = None
 ) -> Tuple[List[int], List[int], List[int], List[int]]:
 
-    all_images = list(range(len(mnist['targets'])))
+    all_images = list(range(len(mnist.targets)))
     train_idx = sorted(
         np.random.choice(all_images,
-                         int(train_ratio * len(mnist['targets'])), replace=False)
+                         int(train_ratio * len(mnist.targets)), replace=False)
         .tolist()
     )
     test_idx = [image for image in all_images if image not in train_idx]

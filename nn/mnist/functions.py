@@ -1,4 +1,4 @@
-from typing import List, Union, Tuple
+from typing import Any, List, Union, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -15,11 +15,11 @@ def plot_lst(img_list: List[Union[Image.Image, np.array]]) -> None:
     plt.show()
 
 
-def test_model(
+def plot_images(
         indexes: List[int],
         model: torch.nn.Module,
         image_transforms: torchvision.transforms,
-        mnist: torchvision.datasets):
+        mnist: Any):
     images = []
     model_images = []
     for idx in indexes:
@@ -33,11 +33,11 @@ def test_model(
 
 def train_test_model(
         model: torch.nn.Module,
-        optimizer: torch.optim,
+        optimizer: torch.optim.Optimizer,
         loss_fn: torch.nn.Module,
         dataloader: torch.utils.data.DataLoader,
         mode: str = "train"
-) -> Tuple[torch.nn.Module, torch.optim, float]:
+) -> Tuple[torch.nn.Module, torch.optim.Optimizer, float]:
     if mode == "train":
         model.train()
     else:

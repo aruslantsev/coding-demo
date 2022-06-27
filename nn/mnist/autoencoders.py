@@ -13,9 +13,9 @@ class SimpleEncoder(torch.nn.Module):
         return x
         
 
-class SImpleDecoder(torch.nn.Module):
+class SimpleDecoder(torch.nn.Module):
     def __init__(self, num_features: int = 2):
-        super(SImpleDecoder, self).__init__()
+        super(SimpleDecoder, self).__init__()
         self.fc = torch.nn.Linear(in_features=num_features, out_features=28 * 28)
         
     def forward(self, x: torch.tensor) -> torch.tensor:
