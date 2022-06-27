@@ -41,8 +41,8 @@ class DeepEncoder(torch.nn.Module):
     def __init__(self, num_features: int = 2):
         super(DeepEncoder, self).__init__()
         self.fc0 = torch.nn.Linear(in_features=28 * 28, out_features=num_features * 3)
-        self.fc1 = torch.nn.Linear(in_features=28 * 28, out_features=num_features * 2)
-        self.fc2 = torch.nn.Linear(in_features=28 * 28, out_features=num_features)
+        self.fc1 = torch.nn.Linear(in_features=num_features * 3, out_features=num_features * 2)
+        self.fc2 = torch.nn.Linear(in_features=num_features * 2, out_features=num_features)
         
     def forward(self, x: torch.tensor) -> torch.tensor:
         x = x.reshape(-1, 28 * 28)
