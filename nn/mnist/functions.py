@@ -23,8 +23,8 @@ def plot_images(
     images = []
     model_images = []
     for idx in indexes:
-        image = image_transforms(mnist[idx][0])
-        initial_image = image.detach().numpy()[0]
+        image = image_transforms(mnist[idx][0]).unsqueeze(0)
+        initial_image = image.squeeze(0).detach().numpy()[0]
         images.append(initial_image)
         model_image = model(image)[0].squeeze(0).detach().numpy()[0]
         model_images.append(model_image)
@@ -73,7 +73,7 @@ def train_model(
     plot_images(plot_idx, model, image_transforms, mnist)
     model, optimizer, test_loss = train_test_model(model, optimizer, loss_fn, testloader, "test")
 
-    print(f"test loss: {test_loss}")
+    print(f"test loss: {test_loss:.4f}")
     train_losses = []
     test_losses = []
     for epoch in range(epochs):
@@ -83,7 +83,7 @@ def train_model(
                                                        "test")
         train_losses.append(train_loss)
         test_losses.append(test_loss)
-        print(f" Epoch {epoch}, train loss: {train_loss}, test loss: {test_loss}")
+        print(f" Epoch {epoch}, train loss: {train_loss:.4f}, test loss: {test_loss:.4f}")
 
         if epoch < 3 or (epoch + 1) % 10 == 0:
             plot_images(plot_idx, model, image_transforms, mnist)
