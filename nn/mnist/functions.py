@@ -85,5 +85,11 @@ def train_model(
 
         if epoch < 3 or (epoch + 1) % 10 == 0:
             plot_images(plot_idx, model, image_transforms, mnist)
+            
+    plt.plot(train_losses, label="train")
+    plt.plot(test_losses, label="test")
+    plt.grid()
+    plt.legend()
+    plt.show()
 
     return model, optimizer
