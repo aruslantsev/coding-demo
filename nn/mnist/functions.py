@@ -56,3 +56,34 @@ def train_test_model(
         total_loss += loss.item()
         
     return model, optimizer, total_loss
+
+
+def train_model(
+        model: torch.nn.Module,
+        optimizer: torch.optim.Optimizer,
+        image_transforms: torchvision.transforms,
+        loss_fn: torch.nn.Module,
+        mnist: Any,
+        trainloader: torch.utils.data.DataLoader,
+        testloader: torch.utils.data.DataLoader,
+        plot_idx: List[int]
+) -> Tuple[torch.nn.Module, torch.optim.Optimizer]:
+    plot_images(plot_idx, model, image_transforms, mnist)
+    model, optimizer, test_loss = train_test_model(model, optimizer, loss_fn, testloader, "test")
+
+    print(f"test loss: {test_loss}")
+    train_losses = []
+    test_losses = []
+    for epoch in range(30):
+        model, optimizer, train_loss = train_test_model(model, optimizer, loss_fn, trainloader,
+                                                        "train")
+        model, optimizer, test_loss = train_test_model(model, optimizer, loss_fn, testloader,
+                                                       "test")
+        train_losses.append(train_loss)
+        test_losses.append(test_loss)
+        print(f" Epoch {epoch}, train loss: {train_loss}, test loss: {test_loss}")
+
+        if epoch < 3 or (epoch + 1) % 10 == 0:
+            plot_images(plot_idx, model, image_transforms, mnist)
+
+    return model, optimizer
