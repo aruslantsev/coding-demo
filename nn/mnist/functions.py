@@ -66,7 +66,7 @@ def train_test_model(
         if mode == "train":
             optimizer.zero_grad()
         if add_noise:
-            model_images, _ = model(images + torch.randn(images.size()))
+            model_images, _ = model(images + torch.randn(images.size()).to(device))
         else:
             model_images, _ = model(images)
         loss = loss_fn(model_images, images)
