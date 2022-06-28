@@ -90,8 +90,10 @@ def train_model(
     image_plotter: ImagePlotter = None,
     add_noise: bool = False,
 ) -> Tuple[torch.nn.Module, torch.optim.Optimizer]:
+
     image_plotter(model, device)
-    model, optimizer, test_loss = train_test_model(model, optimizer, loss_fn, testloader, device, "test", add_noise=add_noise)
+    model, optimizer, test_loss = train_test_model(
+        model, optimizer, loss_fn, testloader, device, "test", add_noise=add_noise)
 
     print(f"test loss: {test_loss:.4f}")
     train_losses = []
