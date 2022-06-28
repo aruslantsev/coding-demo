@@ -33,14 +33,14 @@ class ImagePlotter:
         self.mnist = mnist
         self.indexes = indexes
 
-    def __call__(self, model: torch.nn.Module):
+    def __call__(self, model: torch.nn.Module, device: torch.device):
         images = []
         model_images = []
         for idx in self.indexes:
-            image = self.image_transforms(self.mnist[idx][0]).unsqueeze(0)
-            initial_image = image.squeeze(0).detach().numpy()[0]
+            image = self.image_transforms(self.mnist[idx][0]).unsqueeze(0).to(device)
+            initial_image = image.squeeze(0).detach().cpu().numpy()[0]
             images.append(initial_image)
-            model_image = model(image)[0].squeeze(0).detach().numpy()[0]
+            model_image = model(image)[0].squeeze(0).detach().cpu().numpy()[0]
             model_images.append(model_image)
         plot_lst(images)
         plot_lst(model_images)
@@ -51,6 +51,7 @@ def train_test_model(
     optimizer: torch.optim.Optimizer,
     loss_fn: torch.nn.Module,
     dataloader: torch.utils.data.DataLoader,
+    device: torch.device,
     mode: str = "train",
     add_noise: bool = False,
 ) -> Tuple[torch.nn.Module, torch.optim.Optimizer, float]:
@@ -61,6 +62,7 @@ def train_test_model(
         
     total_loss = 0
     for images, labels in dataloader:
+        images = images.to(device)
         if mode == "train":
             optimizer.zero_grad()
         if add_noise:
@@ -83,27 +85,28 @@ def train_model(
     loss_fn: torch.nn.Module,
     trainloader: torch.utils.data.DataLoader,
     testloader: torch.utils.data.DataLoader,
+    device: torch.device,
     epochs: int = 30,
     image_plotter: ImagePlotter = None,
     add_noise: bool = False,
 ) -> Tuple[torch.nn.Module, torch.optim.Optimizer]:
-    image_plotter(model)
-    model, optimizer, test_loss = train_test_model(model, optimizer, loss_fn, testloader, "test")
+    image_plotter(model, device)
+    model, optimizer, test_loss = train_test_model(model, optimizer, loss_fn, testloader, device, "test", add_noise=add_noise)
 
     print(f"test loss: {test_loss:.4f}")
     train_losses = []
     test_losses = []
     for epoch in range(epochs):
         model, optimizer, train_loss = train_test_model(
-            model, optimizer, loss_fn, trainloader, "train", add_noise=add_noise)
+            model, optimizer, loss_fn, trainloader, device, "train", add_noise=add_noise)
         model, optimizer, test_loss = train_test_model(
-            model, optimizer, loss_fn, testloader, "test", add_noise=add_noise)
+            model, optimizer, loss_fn, testloader, device, "test", add_noise=add_noise)
         train_losses.append(train_loss)
         test_losses.append(test_loss)
         print(f" Epoch {epoch}, train loss: {train_loss:.4f}, test loss: {test_loss:.4f}")
 
         if epoch < 3 or (epoch + 1) % 10 == 0:
-            image_plotter(model)
+            image_plotter(model, device)
             
     plt.plot(train_losses, label="train")
     plt.plot(test_losses, label="test")
