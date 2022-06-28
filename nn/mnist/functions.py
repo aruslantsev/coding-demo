@@ -7,6 +7,18 @@ import torchvision
 from PIL import Image
 
 
+class AddGaussianNoise(object):
+    def __init__(self, mean=0., std=1.):
+        self.std = std
+        self.mean = mean
+        
+    def __call__(self, tensor: torch.tensor) -> torch.tensor:
+        return tensor + torch.randn(tensor.size()) * self.std + self.mean
+    
+    def __repr__(self):
+        return self.__class__.__name__ + f'(mean={self.mean}, std={self.std})'
+
+
 def plot_lst(img_list: List[Union[Image.Image, np.array]]) -> None:
     fig, ax = plt.subplots(nrows=1, ncols=len(img_list))
     for i, img in enumerate(img_list):
@@ -33,11 +45,12 @@ def plot_images(
 
 
 def train_test_model(
-        model: torch.nn.Module,
-        optimizer: torch.optim.Optimizer,
-        loss_fn: torch.nn.Module,
-        dataloader: torch.utils.data.DataLoader,
-        mode: str = "train"
+    model: torch.nn.Module,
+    optimizer: torch.optim.Optimizer,
+    loss_fn: torch.nn.Module,
+    dataloader: torch.utils.data.DataLoader,
+    mode: str = "train",
+    add_noise: bool = False,
 ) -> Tuple[torch.nn.Module, torch.optim.Optimizer, float]:
     if mode == "train":
         model.train()
@@ -48,7 +61,10 @@ def train_test_model(
     for images, labels in dataloader:
         if mode == "train":
             optimizer.zero_grad()
-        model_images, _ = model(images)
+        if add_noise:
+            model_images, _ = model(images + torch.randn(images.size()))
+        else:
+            model_images, _ = model(images)
         loss = loss_fn(model_images, images)
         if mode == "train":
             loss.backward()
@@ -69,6 +85,7 @@ def train_model(
     testloader: torch.utils.data.DataLoader,
     plot_idx: List[int],
     epochs: int = 30,
+    add_noise: bool = False,
 ) -> Tuple[torch.nn.Module, torch.optim.Optimizer]:
     plot_images(plot_idx, model, image_transforms, mnist)
     model, optimizer, test_loss = train_test_model(model, optimizer, loss_fn, testloader, "test")
@@ -78,9 +95,9 @@ def train_model(
     test_losses = []
     for epoch in range(epochs):
         model, optimizer, train_loss = train_test_model(model, optimizer, loss_fn, trainloader,
-                                                        "train")
+                                                        "train", add_noise=add_noise)
         model, optimizer, test_loss = train_test_model(model, optimizer, loss_fn, testloader,
-                                                       "test")
+                                                       "test", add_noise=add_noise)
         train_losses.append(train_loss)
         test_losses.append(test_loss)
         print(f" Epoch {epoch}, train loss: {train_loss:.4f}, test loss: {test_loss:.4f}")

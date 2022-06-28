@@ -76,41 +76,63 @@ class DeepDecoder(torch.nn.Module):
 class ConvAutoEncoder(torch.nn.Module):
     def __init__(self):
         super(ConvAutoEncoder, self).__init__()
-        self.conv0 = torch.nn.Conv2d(
+        self.enc_conv0 = torch.nn.Conv2d(
             in_channels=1, out_channels=128, kernel_size=(7, 7), padding="same")
-        self.conv1 = torch.nn.Conv2d(
-            in_channels=128, out_channels=32, kernel_size=(3, 3), padding="same")
-        self.conv2 = torch.nn.Conv2d(
-            in_channels=32, out_channels=1, kernel_size=(7, 7), padding="same")
-        self.pooling = torch.nn.MaxPool2d((2, 2))
-        
-        self.conv3 = torch.nn.Conv2d(
-            in_channels=1, out_channels=32, kernel_size=(7, 7), padding="same")
-        self.conv4 = torch.nn.Conv2d(
-            in_channels=32, out_channels=128, kernel_size=(3, 3), padding="same")
-        self.conv5 = torch.nn.Conv2d(
+        self.enc_conv1 = torch.nn.Conv2d(
+            in_channels=128, out_channels=4, kernel_size=(3, 3), padding="same")
+        self.enc_conv2 = torch.nn.Conv2d(
+            in_channels=4, out_channels=1, kernel_size=(3, 3), padding="same")
+        self.pooling = torch.nn.MaxPool2d(kernel_size=(2, 2))
+
+        self.dec_conv0 = torch.nn.Conv2d(
+            in_channels=1, out_channels=4, kernel_size=(3, 3), padding="same")
+        self.dec_conv1 = torch.nn.Conv2d(
+            in_channels=4, out_channels=128, kernel_size=(3, 3), padding="same")
+        self.dec_conv2 = torch.nn.Conv2d(
             in_channels=128, out_channels=1, kernel_size=(7, 7), padding="same")
-        self.unpooling = torch.nn.Upsample(scale_factor=(2, 2))
+        self.unpooling = torch.nn.UpsamplingBilinear2d(scale_factor=2)
 
     def forward(self, x: torch.tensor) -> torch.tensor:
-        x = self.conv0(x)
+        x = self.enc_conv0(x)
         x = torch.nn.functional.relu(x)
         x = self.pooling(x)
-        x = self.conv1(x)
+        x = self.enc_conv1(x)
         x = torch.nn.functional.relu(x)
         x = self.pooling(x)
-        x = self.conv2(x)
+        x = self.enc_conv2(x)
         x = torch.nn.functional.relu(x)
         
-        x = self.conv3(x)
+        x = self.dec_conv0(x)
         x = torch.nn.functional.relu(x)
         x = self.unpooling(x)
-        x = self.conv4(x)
+        x = self.dec_conv1(x)
         x = torch.nn.functional.relu(x)
         x = self.unpooling(x)
-        x = self.conv5(x)
+        x = self.dec_conv2(x)
         x = torch.nn.functional.relu(x)
         x = torch.sigmoid(x)
-        x = x.reshape(-1, 28, 28)
 
-        return x
+        return x, None
+
+    
+class ConvAutoEncoderV2(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+       
+        self.conv1 = torch.nn.Conv2d(1, 16, 3, padding=1)  
+        self.conv2 = torch.nn.Conv2d(16, 4, 3, padding=1)
+        self.pool = torch.nn.MaxPool2d(2, 2)
+       
+        self.t_conv1 = torch.nn.ConvTranspose2d(4, 16, 2, stride=2)
+        self.t_conv2 = torch.nn.ConvTranspose2d(16, 1, 2, stride=2)
+
+
+    def forward(self, x):
+        x = torch.nn.functional.relu(self.conv1(x))
+        x = self.pool(x)
+        x = torch.nn.functional.relu(self.conv2(x))
+        x = self.pool(x)
+        x = torch.nn.functional.relu(self.t_conv1(x))
+        x = torch.nn.functional.sigmoid(self.t_conv2(x))
+              
+        return x, None
