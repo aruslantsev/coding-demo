@@ -5,7 +5,7 @@
 
 #define LED_PIN GPIO_NUM_2
 
-TaskHandle_t Cycle1000Handle = NULL, Delay1000Handle = NULL, TaskDispatcherHandle = NULL, Blink1sHandle = NULL;
+TaskHandle_t Cycle1sHandle = NULL, Delay1sHandle = NULL, TaskDispatcherHandle = NULL, Blink1sHandle = NULL;
 
 void Blink1s(void *arg) {
     // gpio_pad_select_gpio(LED_PIN);
@@ -19,7 +19,8 @@ void Blink1s(void *arg) {
         gpio_set_level(LED_PIN, 0);
         printf("LED disabled on pin %d\n", LED_PIN);
         vTaskDelay(50 / portTICK_PERIOD_MS);
-        vTaskDelayUntil(&last_wake_time, pdMS_TO_TICKS(1000)); // After suspend and resume works without delay for skipped cycles
+        vTaskDelayUntil(&last_wake_time, pdMS_TO_TICKS(1000));
+        // After suspend and resume it blinks faster until it is on time because the resume time is in the past
     }
 }
 
@@ -30,14 +31,14 @@ void TaskDispatcher(void *arg)
         vTaskDelay(1000 / portTICK_PERIOD_MS);
         if (counter % 10 == 5) {
             printf("Suspending tasks\n");
-            vTaskSuspend(Cycle1000Handle);
-            vTaskSuspend(Delay1000Handle);
+            vTaskSuspend(Cycle1sHandle);
+            vTaskSuspend(Delay1sHandle);
             vTaskSuspend(Blink1sHandle);
             printf("Done\n");
         } else if (counter % 10 == 0) {
             printf("Resuming tasks\n");
-            vTaskResume(Cycle1000Handle);
-            vTaskResume(Delay1000Handle);
+            vTaskResume(Cycle1sHandle);
+            vTaskResume(Delay1sHandle);
             vTaskResume(Blink1sHandle);
             printf("Done\n");
         }
@@ -46,7 +47,11 @@ void TaskDispatcher(void *arg)
     }
 }
 
-void Cycle1000(void *arg) {
+void Cycle1s(void *arg) {
+    /*
+     * Demo. Every cycle should be 1s. But after suspend and resume the delay of vTaskDelayUntil will be zero
+     * for some cycles because last_wake_time is in the past
+     */
     TickType_t last_wake_time = xTaskGetTickCount(), curr_time;
     for (int i = 0;; i++) {
         curr_time = xTaskGetTickCount();
@@ -55,7 +60,10 @@ void Cycle1000(void *arg) {
     }
 }
 
-void Delay1000(void *arg) {
+void Delay1s(void *arg) {
+    /*
+     * Demo. Sleeps 1s after each cycle. After suspend and resume the delay is 1s
+     */
     TickType_t  last_wake_time = 0, curr_time;
     for (int i = 0;; i++) {
         curr_time = xTaskGetTickCount();
@@ -69,7 +77,7 @@ void Delay1000(void *arg) {
 void app_main(void)
 {
     xTaskCreate(TaskDispatcher, "TaskDispatcher", 4096, NULL, 10, &TaskDispatcherHandle);
-    xTaskCreate(Cycle1000, "Cycle1000", 4096, NULL, 10, &Cycle1000Handle);
-    xTaskCreate(Delay1000, "Delay1000", 4096, NULL, 10, &Delay1000Handle);
+    xTaskCreate(Cycle1s, "Cycle1s", 4096, NULL, 10, &Cycle1sHandle);
+    xTaskCreate(Delay1s, "Delay1s", 4096, NULL, 10, &Delay1sHandle);
     xTaskCreate(Blink1s, "Blink1s", 4096, NULL, 10, &Blink1sHandle);
 }
