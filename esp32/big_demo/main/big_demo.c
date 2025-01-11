@@ -2,43 +2,62 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <driver/gpio.h>
-#include <driver/adc.h>
-#include <esp_adc_cal.h>
+#include <esp_adc/adc_oneshot.h>
+#include <esp_adc/adc_cali.h>
+#include <esp_adc/adc_cali_scheme.h>
 
 #define LED_PIN         GPIO_NUM_2
 #define BTN_PIN         GPIO_NUM_18
 #define BTN_LED_PIN     GPIO_NUM_19
-#define ADC_UNIT        ADC_UNIT_1
+#define ADC1            ADC_UNIT_1
+#define ADC1_CH0        ADC_CHANNEL_4
+#define ADC_ATTEN       ADC_ATTEN_DB_12
 
 #define is_debug        0
 
 TaskHandle_t Cycle1sHandle = NULL, Delay1sHandle = NULL, TaskDispatcherHandle = NULL, Blink1sHandle = NULL, BtnLEDHandle = NULL, ADCReadHandle = NULL;
 
-/*
-driver/adc.h legacy adc driver is deprecated, please migrate to use esp_adc/adc_oneshot.h and esp_adc/adc_continuous.h for oneshot mode and continuous mode drivers respectively
-esp_adc_cal.h legacy adc calibration driver is deprecated, please migrate to use esp_adc/adc_cali.h and esp_adc/adc_cali_scheme.h
-'ADC_ATTEN_DB_11' is deprecated [-Wdeprecated-declarations]
-ADC_ATTEN_DB_11 __attribute__((deprecated)) = ADC_ATTEN_DB_12,  ///<This is deprecated, it behaves the same as `ADC_ATTEN_DB_12`
-*/
-
-
 
 void ADCRead(void *arg) {
-    static esp_adc_cal_characteristics_t adc1_chars;
+    int adc_raw, adc_voltage;
 
-    esp_adc_cal_characterize(ADC_UNIT, ADC_ATTEN_DB_11, ADC_WIDTH_BIT_DEFAULT, 0, &adc1_chars);
+    adc_oneshot_unit_handle_t adc1_handle;
+    adc_oneshot_unit_init_cfg_t init_config1 = {
+        .unit_id = ADC1,
+    };
+    adc_oneshot_new_unit(&init_config1, &adc1_handle);
 
-    adc1_config_width(ADC_WIDTH_BIT_DEFAULT);
-    adc1_config_channel_atten(ADC1_CHANNEL_4, ADC_ATTEN_DB_11);
-    uint32_t voltage;
+    adc_oneshot_chan_cfg_t config = {
+        .atten = ADC_ATTEN,
+        .bitwidth = ADC_BITWIDTH_DEFAULT,
+    };
+    adc_oneshot_config_channel(adc1_handle, ADC1_CH0, &config);
 
-    while (1)
-    {
-        int adc_value = adc1_get_raw(ADC1_CHANNEL_4);
-        voltage = esp_adc_cal_raw_to_voltage(adc_value, &adc1_chars);
-        printf("Voltage: %ld mV\n", voltage);
-        vTaskDelay(500 / portTICK_PERIOD_MS);
+    adc_cali_handle_t adc1_cali_chan0_handle = NULL;
+    /*
+    adc_cali_curve_fitting_config_t cali_config = {
+        .unit_id = ADC1,
+        .chan = ADC1_CH0,
+        .atten = ADC_ATTEN,
+        .bitwidth = ADC_BITWIDTH_DEFAULT,
+    };
+    adc_cali_create_scheme_curve_fitting(&cali_config, &adc1_cali_chan0_handle);
+    */
+    adc_cali_line_fitting_config_t cali_config = {
+        .unit_id = ADC1,
+        .atten = ADC_ATTEN,
+        .bitwidth = ADC_BITWIDTH_DEFAULT,
+    };
+    adc_cali_create_scheme_line_fitting(&cali_config, &adc1_cali_chan0_handle);
+
+    while (1) {
+        adc_oneshot_read(adc1_handle, ADC1_CH0, &adc_raw);
+        printf("ADC%d Channel[%d] Raw Data: %d\n", ADC_UNIT_1 + 1, ADC1_CH0, adc_raw);
+        adc_cali_raw_to_voltage(adc1_cali_chan0_handle, adc_raw, &adc_voltage);
+        printf("ADC%d Channel[%d] Cali Voltage: %d mV\n", ADC_UNIT_1 + 1, ADC1_CH0, adc_voltage);
+        vTaskDelay(pdMS_TO_TICKS(1000));
     }
+
 }
 
 void BtnLED(void *arg) {
