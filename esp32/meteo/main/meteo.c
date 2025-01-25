@@ -8,6 +8,32 @@
 #define ets_delay_us esp_rom_delay_us
 
 
+enum dht11_status {
+    DHT11_CRC_ERROR = -2,
+    DHT11_TIMEOUT_ERROR = -1,
+    DHT11_OK = 0
+};
+
+
+struct dht11_data {
+    int16_t status;
+    double temperature;
+    double humidity;
+};
+
+
+int32_t measure_delay(gpio_num_t pin_num, uint16_t level, uint16_t timeout) {
+    int32_t delay = 0;
+    while (gpio_get_level(pin_num) == level) {
+        delay++;
+        if (delay > timeout)
+            return DHT11_TIMEOUT_ERROR;
+        ets_delay_us(1);
+    }
+    return delay;
+}
+
+
 void send_hello(gpio_num_t pin_num) {
     gpio_set_direction(pin_num, GPIO_MODE_OUTPUT);
     gpio_set_level(pin_num, 0);
@@ -18,63 +44,64 @@ void send_hello(gpio_num_t pin_num) {
 }
 
 
-int32_t measure_delay(gpio_num_t pin_num, int32_t level) {
-    int32_t delay = 0;
-    while (gpio_get_level(pin_num) == level) {
-        delay++;
-        if (delay > 1000)
-            return -1;
-        ets_delay_us(1);
+int16_t wait_response(gpio_num_t pin_num) {
+    if (measure_delay(pin_num, 0, 80) == DHT11_TIMEOUT_ERROR)
+        return DHT11_TIMEOUT_ERROR;
+    if (measure_delay(pin_num, 1, 80) == DHT11_TIMEOUT_ERROR)
+        return DHT11_TIMEOUT_ERROR;
+    return DHT11_OK;
+}
+
+
+double bytes_to_double(uint8_t integer, uint8_t decimal) {
+    double result = 0, converted = 0;
+    result = (double) integer;
+    converted = 0;
+    while (decimal > 0) {
+        converted += decimal % 10;
+        converted /= 10;
+        decimal /= 10;
     }
-    return delay;
+    return result + converted;
 }
 
 
-int32_t wait_response(gpio_num_t pin_num) {
-    uint32_t timer_low, timer_high;
-    timer_low = measure_delay(pin_num, 0);
-    timer_high = measure_delay(pin_num, 0);
-    return ((timer_low == -1) || (timer_high == -1));
-}
-
-
-int32_t adc_read() {
-    int32_t high_delay;
+struct dht11_data dht_read(gpio_num_t dht11_pin) {
+    struct dht11_data dht_reading = {DHT11_OK, 0, 0};
     uint8_t data[5] = {0, 0, 0, 0, 0};
-    double temperature, humidity;
-
-    send_hello(DHT_PIN);
-    if (wait_response(DHT_PIN) != 0) {
-        printf("Failed to initialize\n");
-        return -1;
-    }
-
+    send_hello(dht11_pin);
+    if (wait_response(dht11_pin) == DHT11_TIMEOUT_ERROR)
+        dht_reading.status = DHT11_TIMEOUT_ERROR;
     for (int count = 0; count < 40; count++) {
-        if (measure_delay(DHT_PIN, 0) == -1) {
-            printf("Failed to read, low level\n");
-            return -1;
-        }
-        high_delay = measure_delay(DHT_PIN, 1);
-        if (high_delay == -1) {
-            printf("Failed to read, low level\n");
-            return -1;
-        }
-        if (high_delay > 28)
-            data[count / 8] |= (1 << (7 - (count % 8)));
+        if (measure_delay(dht11_pin, 0, 50) == DHT11_TIMEOUT_ERROR)
+            dht_reading.status = DHT11_TIMEOUT_ERROR;
+        if (measure_delay(dht11_pin, 1, 70) > 28)
+            data[count / 8] |= (1 << (7 - (count  % 8)));
     }
-    if (((data[0] + data[1] + data[2] + data[3]) & 0xff) != data[4])
-        printf("CRC error\n");
-
-    humidity = (data[0] + data[1]) / 10.0;
-    temperature = (data[2] + data[3]) / 10.0;
-    printf("%f %f\n", humidity, temperature);
-    return 0;
+    dht_reading.temperature = bytes_to_double(data[2], data[3]);
+    dht_reading.humidity = bytes_to_double(data[0], data[1]);
+    if (data[0] + data[1] + data[2] + data[3] != data[4])
+        dht_reading.status = DHT11_CRC_ERROR;
+    return dht_reading;
 }
+
 
 void app_main(void)
 {
+    struct dht11_data dht_data;
     while (1) {
         vTaskDelay(pdMS_TO_TICKS(2000));
-        adc_read();
+        dht_data = dht_read(DHT_PIN);
+        switch (dht_data.status) {
+        case DHT11_TIMEOUT_ERROR:
+            printf("Timeout error\n");
+            break;
+        case DHT11_CRC_ERROR:
+            printf("CRC error\n");
+            break;
+        default:
+            break;
+        }
+        printf("%.2f %.2f\n", dht_data.temperature, dht_data.humidity);
     }
 }
