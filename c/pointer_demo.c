@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-void positive(float *k)
+void positive(double *k)
 {
     if (*k != 0)
         *k = *k > 0 ? *k : -(*k);
@@ -10,11 +10,12 @@ void positive(float *k)
 
 int main()
 {
-    float *n;
-    n = (float *) malloc(sizeof(float));
-    scanf("%f", n);
+    double *n;
+    n = (double *) malloc(sizeof(float));
+    scanf("%lf", n);
+    printf("Entered: %.2lf\n", *n);
     positive(n);
-    printf("%f\n", *n);
+    printf("After applying function: %.2lf\n", *n);
     free(n);
     return 0;
 }

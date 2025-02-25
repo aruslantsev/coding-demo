@@ -39,7 +39,7 @@ int main()
     k++;
     ldt /= 2;
     if (0 +ldt == 0)
-      printf("Long double\t\t: %e\nNumber of iterations\t: %d\n", ld, k);
+      printf("Long double\t\t: %Le\nNumber of iterations\t: %d\n", ld, k);
     ld = ldt;
   }
   while (0 + ldt != 0);
