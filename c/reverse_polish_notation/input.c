@@ -19,7 +19,7 @@ int getop(char s[]) {
         while (isdigit(s[++i] = c = (buf_used? buf_used = 0, buffer: getchar())));
     s[i] = '\0';
     if (c != EOF) {
-        buffer = c;
+        buffer = c;  /* ungetc(c, stdin) can be used here */
         buf_used = 1;
     }
     return NUMBER;
