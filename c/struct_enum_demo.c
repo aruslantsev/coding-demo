@@ -13,6 +13,7 @@ struct BinaryOp{
     enum operation op;
 };
 
+
 int main (void)
 {
     struct BinaryOp mulOp = {.n1 = 6, .n2 = 8, .op = MULTIPLY};
@@ -32,5 +33,10 @@ int main (void)
             printf("Unknown op\n");
             break;
     }
+
+    enum days {Monday = 1, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday};
+    for(int i = Monday;i <= Sunday; i++)
+        printf("%d, ", i);
+    printf("\n");
     return 0;
 }

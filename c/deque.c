@@ -125,7 +125,7 @@ void print_deque(tDeque queue) {
 
 void print_help() {
     printf(
-        "Double linked queue\n"
+        "Double ended queue\n"
         "Enter h for help, "
         "l to push left, r to push right, "
         "e to pop right, k to pop left, "

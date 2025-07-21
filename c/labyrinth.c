@@ -1,7 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+
 void lab(int, int, int *, int, int, bool *);
+
+
 int main()
 {
     FILE *infile;
