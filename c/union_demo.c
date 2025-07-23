@@ -27,7 +27,5 @@ int main() {
     strcpy(a.s, "GfG");
     printf("data.s = %s\n", a.s);
 
-
-
     return 0;
 }
