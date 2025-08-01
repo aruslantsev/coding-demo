@@ -2,7 +2,7 @@ c99.c - test variable length array in C99, segfault due to heap size?
 
 countsym.c - K&R example, count number of symbols in stdin
 
-dec2bin - convert dec to bin (boring: remainder of division, etc.)
+dec2bin.c - convert dec to bin (boring: remainder of division, etc.)
 
 deque.c - double ended queue (malloc, free, etc)
 
@@ -37,3 +37,5 @@ strfun.c - K&R example. check if string contains blacklisted chars, remove some 
 struct_enum_demo.c - demo code for structures and enums
 
 union_demo.c - demo code for unions
+
+word_count.c - K&R example, count number or words in stdin, implements tree, uses qsort and structures
