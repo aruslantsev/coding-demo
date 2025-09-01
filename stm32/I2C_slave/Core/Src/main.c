@@ -42,15 +42,20 @@
 /* Private variables ---------------------------------------------------------*/
 
 COM_InitTypeDef BspCOMInit;
-__IO uint32_t BspButtonState = BUTTON_RELEASED;
+
+I2C_HandleTypeDef hi2c1;
 
 /* USER CODE BEGIN PV */
+
+#define		RXBUFSZ		16
+uint8_t RX_Buffer[RXBUFSZ];
 
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_I2C1_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -89,6 +94,7 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
 
   /* USER CODE END 2 */
@@ -112,35 +118,26 @@ int main(void)
     Error_Handler();
   }
 
-  /* USER CODE BEGIN BSP */
-  /* -- Sample board code to send message over COM1 port ---- */
-  printf("Welcome to STM32 world !\n\r");
-  const int max_delay = 1024, min_delay = 8;
-  int counter = 0, delay = max_delay;
-  Led_TypeDef LEDs[] = {LED_GREEN, LED_YELLOW, LED_RED};
-  /* -- Sample board code to switch on led ---- */
-  BSP_LED_On(LEDs[counter]);
-  /* USER CODE END BSP */
-
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  printf("Waiting for data...\r\n");
+  int rx_size = 2;  /* Exact size; Does not work if received less or more bytes */
   while (1)
   {
 
-    /* -- Sample board code for User push-button in interrupt mode ---- */
-    HAL_Delay(delay);
-    BSP_LED_Off(LEDs[counter]);
-    counter = (counter + 1) % 3;
-    BSP_LED_On(LEDs[counter]);
-    if (counter == 0) printf("Blink\n\r");
-    if (BspButtonState == BUTTON_PRESSED)
-    {
-      /* Update button state */
-      BspButtonState = BUTTON_RELEASED;
-      delay /= 2;
-      if (delay < min_delay) delay = max_delay;
-      printf("Delay: %d\n\r", delay);
-    }
+	if (HAL_I2C_Slave_Receive(&hi2c1, (uint8_t *) RX_Buffer, rx_size, 100) == HAL_OK){
+		BSP_LED_On(LED_GREEN);
+		BSP_LED_Off(LED_RED);
+		printf("Data: ");
+		for (int i = 0; i < rx_size; i++) printf("0x%02x ", RX_Buffer[i]);
+		printf("\r\n");
+	} else {
+		BSP_LED_Off(LED_GREEN);
+		BSP_LED_On(LED_RED);
+		/* printf("HAL not OK\r\n"); */
+	}
+	HAL_Delay(10);
+	BSP_LED_Toggle(LED_YELLOW);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -202,6 +199,54 @@ void SystemClock_Config(void)
   /** Configure the programming delay
   */
   __HAL_FLASH_SET_PROGRAM_DELAY(FLASH_PROGRAMMING_DELAY_2);
+}
+
+/**
+  * @brief I2C1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_I2C1_Init(void)
+{
+
+  /* USER CODE BEGIN I2C1_Init 0 */
+
+  /* USER CODE END I2C1_Init 0 */
+
+  /* USER CODE BEGIN I2C1_Init 1 */
+
+  /* USER CODE END I2C1_Init 1 */
+  hi2c1.Instance = I2C1;
+  hi2c1.Init.Timing = 0x10C043E5;
+  hi2c1.Init.OwnAddress1 = 84;
+  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c1.Init.OwnAddress2 = 0;
+  hi2c1.Init.OwnAddress2Masks = I2C_OA2_NOMASK;
+  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure Analogue filter
+  */
+  if (HAL_I2CEx_ConfigAnalogFilter(&hi2c1, I2C_ANALOGFILTER_ENABLE) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure Digital filter
+  */
+  if (HAL_I2CEx_ConfigDigitalFilter(&hi2c1, 0) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN I2C1_Init 2 */
+
+  /* USER CODE END I2C1_Init 2 */
+
 }
 
 /**
@@ -298,19 +343,6 @@ static void MX_GPIO_Init(void)
 /* USER CODE BEGIN 4 */
 
 /* USER CODE END 4 */
-
-/**
-  * @brief  BSP Push Button callback
-  * @param  Button Specifies the pressed button
-  * @retval None
-  */
-void BSP_PB_Callback(Button_TypeDef Button)
-{
-  if (Button == BUTTON_USER)
-  {
-    BspButtonState = BUTTON_PRESSED;
-  }
-}
 
 /**
   * @brief  This function is executed in case of error occurrence.
