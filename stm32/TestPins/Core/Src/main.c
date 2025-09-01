@@ -115,32 +115,26 @@ int main(void)
   /* USER CODE BEGIN BSP */
   /* -- Sample board code to send message over COM1 port ---- */
   printf("Welcome to STM32 world !\n\r");
-  const int max_delay = 1024, min_delay = 8;
-  int counter = 0, delay = max_delay;
-  Led_TypeDef LEDs[] = {LED_GREEN, LED_YELLOW, LED_RED};
-  /* -- Sample board code to switch on led ---- */
-  BSP_LED_On(LEDs[counter]);
+  /* -- Sample board code to switch on leds ---- */
+  BSP_LED_On(LED_GREEN);
+  BSP_LED_On(LED_YELLOW);
+  BSP_LED_On(LED_RED);
   /* USER CODE END BSP */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  /*
+	  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_2, GPIO_PIN_RESET);
+	  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_2, GPIO_PIN_SET);
+	  */
+	  HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_2);
+	  BSP_LED_Toggle(LED_GREEN);
+	  BSP_LED_Toggle(LED_YELLOW);
+	  BSP_LED_Toggle(LED_RED);
+	  HAL_Delay(1000);
 
-    /* -- Sample board code for User push-button in interrupt mode ---- */
-    HAL_Delay(delay);
-    BSP_LED_Off(LEDs[counter]);
-    counter = (counter + 1) % 3;
-    BSP_LED_On(LEDs[counter]);
-    if (counter == 0) printf("Blink\n\r");
-    if (BspButtonState == BUTTON_PRESSED)
-    {
-      /* Update button state */
-      BspButtonState = BUTTON_RELEASED;
-      delay /= 2;
-      if (delay < min_delay) delay = max_delay;
-      printf("Delay: %d\n\r", delay);
-    }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -223,6 +217,13 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOG_CLK_ENABLE();
+  __HAL_RCC_GPIOD_CLK_ENABLE();
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8|GPIO_PIN_10|GPIO_PIN_11|GPIO_PIN_12, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_2, GPIO_PIN_RESET);
 
   /*Configure GPIO pins : RMII_MDC_Pin RMII_RXD0_Pin RMII_RXD1_Pin */
   GPIO_InitStruct.Pin = RMII_MDC_Pin|RMII_RXD0_Pin|RMII_RXD1_Pin;
@@ -266,6 +267,13 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(UCPD_FLT_GPIO_Port, &GPIO_InitStruct);
 
+  /*Configure GPIO pins : PC8 PC10 PC11 PC12 */
+  GPIO_InitStruct.Pin = GPIO_PIN_8|GPIO_PIN_10|GPIO_PIN_11|GPIO_PIN_12;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
   /*Configure GPIO pins : USB_FS_N_Pin USB_FS_P_Pin */
   GPIO_InitStruct.Pin = USB_FS_N_Pin|USB_FS_P_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
@@ -273,6 +281,13 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   GPIO_InitStruct.Alternate = GPIO_AF10_USB;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PD2 */
+  GPIO_InitStruct.Pin = GPIO_PIN_2;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
 
   /*Configure GPIO pins : RMII_TXT_EN_Pin RMI_TXD0_Pin */
   GPIO_InitStruct.Pin = RMII_TXT_EN_Pin|RMI_TXD0_Pin;
