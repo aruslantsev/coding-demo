@@ -5,7 +5,8 @@ typedef enum {
 	BMP180_RESET_ERR 		= 0x03U,
 	BMP180_WRITE_ERR		= 0x04U,
 	BMP180_READ_ERR			= 0x05U,
-	BMP180_VALUE_ERR		= 0x06U
+	BMP180_VALUE_ERR		= 0x06U,
+	BMP180_TIMEOUT_ERR		= 0x07U
 } BMP180_STATUS;
 
 
@@ -26,7 +27,7 @@ typedef struct {
 	uint8_t				oss;
 	int32_t				ut;
 	int32_t				up;
-	double				temperature;
+	int32_t				temperature;
 	double				pressure;
 } BMP180;
 
@@ -210,6 +211,37 @@ HAL_StatusTypeDef bmp180_set_oversampling(BMP180 *bmp180, uint8_t oss) {
 }
 
 
+int32_t get_temp(BMP180 *bmp180) {
+	int32_t x1 = (bmp180->ut - bmp180->ac6) * bmp180->ac5 / (1 << 15);
+	int32_t x2 = bmp180->mc * (1 << 11) / (x1 + bmp180->md);
+	int32_t b5 = x1 + x2;
+	return (b5 + 8) / (1 << 4);
+}
+
+
+int32_t get_pressure(BMP180 *bmp180) {
+	int32_t x1 = (bmp180->ut - bmp180->ac6) * bmp180->ac5 / (1 << 15);
+	int32_t x2 = bmp180->mc * (1 << 11) / (x1 + bmp180->md);
+	int32_t b5 = x1 + x2;
+	int32_t b6 = b5 - 4000;
+	x1 = (bmp180->b2 * (b6 * b6 / (1 << 12))) / (1 << 11);
+	x2 = bmp180->ac2 * b6 / (1 << 11);
+	int32_t x3 = x1 + x2;
+	int32_t b3 = (((bmp180->ac1 * 4 + x3) << bmp180->oss) + 2) / 4;
+	x1 = (bmp180->ac3) * b6 / (1 << 13);
+	x2 = (bmp180->b1 * (b6 * b6 / (1 << 12))) / (1 << 16);
+	x3 = ((x1 + x2) + 2) / (1 << 2);
+	uint32_t b4 = bmp180->ac4 * (uint32_t) (x3 + 32768) / (1 << 15);
+	uint32_t b7 = ((uint32_t) bmp180->up - b3) * (50000 >> bmp180->oss);
+	int32_t p;
+	if (b7 < 0x80000000) p = (b7 * 2) / b4;
+	else p = (b7 / b4) * 2;
+	x1 = (p / (1 << 8)) * (p / (1 << 8));
+	x1 = (x1 * 3038) / (1 << 16);
+	x2 = (-7357 * p) / (1 << 16);
+	return p + (x1 + x2 + 3791) / (1 << 4);
+}
+
 HAL_StatusTypeDef bmp180_get_temperature(BMP180 *bmp180) {
 	HAL_StatusTypeDef ret;
 	uint8_t reg = 1 << 5 | 0b01110;
@@ -226,6 +258,7 @@ HAL_StatusTypeDef bmp180_get_temperature(BMP180 *bmp180) {
 	);
 	if (ret != HAL_OK) return BMP180_WRITE_ERR;
 
+	uint8_t i = 0;
 	do {
 		ret = HAL_I2C_Mem_Read(
 				bmp180->i2c_bus,
@@ -238,6 +271,7 @@ HAL_StatusTypeDef bmp180_get_temperature(BMP180 *bmp180) {
 		);
 		if (ret != HAL_OK) return BMP180_READ_ERR;
 		HAL_Delay(5);
+		if (i >= 128) return BMP180_TIMEOUT_ERR;
 	} while (buf[0] & (1 << 5));
 
 	ret = HAL_I2C_Mem_Read(
@@ -251,6 +285,7 @@ HAL_StatusTypeDef bmp180_get_temperature(BMP180 *bmp180) {
 	);
 	if (ret != HAL_OK) return BMP180_READ_ERR;
 	bmp180->ut = (buf[0] << 8) | buf[1];
+	bmp180->temperature = get_temp(bmp180);
 	return BMP180_OK;
 }
 
@@ -271,6 +306,7 @@ HAL_StatusTypeDef bmp180_get_pressure(BMP180 *bmp180) {
 	);
 	if (ret != HAL_OK) return BMP180_WRITE_ERR;
 
+	uint8_t i = 0;
 	do {
 		ret = HAL_I2C_Mem_Read(
 				bmp180->i2c_bus,
@@ -283,6 +319,7 @@ HAL_StatusTypeDef bmp180_get_pressure(BMP180 *bmp180) {
 		);
 		if (ret != HAL_OK) return BMP180_READ_ERR;
 		HAL_Delay(5);
+		if (i >= 128) return BMP180_TIMEOUT_ERR;
 	} while (buf[0] & (1 << 5));
 
 	ret = HAL_I2C_Mem_Read(
@@ -296,5 +333,6 @@ HAL_StatusTypeDef bmp180_get_pressure(BMP180 *bmp180) {
 	);
 	if (ret != HAL_OK) return BMP180_READ_ERR;
 	bmp180->up = ((buf[0] << 16) | (buf[1] << 8) | buf[2]) >> (8 - bmp180->oss);
+	bmp180->pressure = get_pressure(bmp180);
 	return BMP180_OK;
 }
