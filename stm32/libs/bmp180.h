@@ -75,7 +75,7 @@ HAL_StatusTypeDef bmp180_init(BMP180 *bmp180, I2C_HandleTypeDef *i2c_bus, uint16
 			2,
 			100
 	);
-	if (ret != HAL_OK) return ret;
+	if (ret != HAL_OK) return BMP180_READ_ERR;
 	bmp180->ac1 = (buf[0] << 8) | buf[1];
 
 	ret = HAL_I2C_Mem_Read(
