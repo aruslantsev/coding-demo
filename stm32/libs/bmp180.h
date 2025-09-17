@@ -14,16 +14,18 @@
  *    This fills fields up and pressure in BMP180 structure.
  */
 
+
 typedef enum {
-    BMP180_OK = 0x00U,
-    BMP180_NORESPONSE = 0x01U,
-    BMP180_NOTFOUND = 0x02U,
-    BMP180_RESET_ERR = 0x03U,
-    BMP180_WRITE_ERR = 0x04U,
-    BMP180_READ_ERR = 0x05U,
-    BMP180_VALUE_ERR = 0x06U,
-    BMP180_TIMEOUT_ERR = 0x07U
+    BMP180_OK               = 0x00U,
+    BMP180_NORESPONSE       = 0x01U,
+    BMP180_NOTFOUND         = 0x02U,
+    BMP180_RESET_ERR        = 0x03U,
+    BMP180_WRITE_ERR        = 0x04U,
+    BMP180_READ_ERR         = 0x05U,
+    BMP180_VALUE_ERR        = 0x06U,
+    BMP180_TIMEOUT_ERR      = 0x07U
 } BMP180_STATUS;
+
 
 typedef struct {
     I2C_HandleTypeDef *i2c_bus;
@@ -50,6 +52,7 @@ typedef struct {
     int32_t pressure; // Pa
 } BMP180;
 
+
 /*
  * Initializes structure with i2c handler and sensor address, checks chip id,
  * sends soft reset signal, fetches calibration data
@@ -58,7 +61,7 @@ BMP180_STATUS bmp180_init(BMP180 *bmp180, I2C_HandleTypeDef *i2c_bus, uint16_t a
     bmp180->i2c_bus = i2c_bus;
     bmp180->addr = addr;
     bmp180->oss = 0;
-    BMP180_STATUS ret;
+    HAL_StatusTypeDef ret;
     uint8_t buf[2];
 
     /* Check chip id */
@@ -239,6 +242,7 @@ BMP180_STATUS bmp180_init(BMP180 *bmp180, I2C_HandleTypeDef *i2c_bus, uint16_t a
     return BMP180_OK;
 }
 
+
 /*
  * Changes oversampling setting
  */
@@ -249,6 +253,7 @@ BMP180_STATUS bmp180_set_oversampling(BMP180 *bmp180, uint8_t oss) {
     return BMP180_OK;
 }
 
+
 /*
  * Calculates temperature using uncompensated temperature and calibration data
  */
@@ -258,6 +263,7 @@ int32_t get_temp(BMP180 *bmp180) {
     int32_t b5 = x1 + x2;
     return (b5 + 8) >> 4;
 }
+
 
 /*
  * Calculates pressure using uncompensated temperature, uncompensated pressure
@@ -288,11 +294,12 @@ int32_t get_pressure(BMP180 *bmp180) {
     return p + ((x1 + x2 + 3791) >> 4);
 }
 
+
 /*
  * Reads uncompensated temperature and calculates temperature in 0.1 degrees Celsius
  */
 BMP180_STATUS bmp180_get_temperature(BMP180 *bmp180) {
-	BMP180_STATUS ret;
+    HAL_StatusTypeDef ret;
     uint8_t reg = 1 << 5 | 0b01110;
     uint8_t buf[2];
 
@@ -344,11 +351,12 @@ BMP180_STATUS bmp180_get_temperature(BMP180 *bmp180) {
     return BMP180_OK;
 }
 
+
 /*
  * Reads uncompensated pressure and calculates pressure in Pa
  */
 BMP180_STATUS bmp180_get_pressure(BMP180 *bmp180) {
-	BMP180_STATUS ret;
+    HAL_StatusTypeDef ret;
     uint8_t reg = bmp180->oss << 6 | 1 << 5 | 0b10100;
     uint8_t buf[3];
 
