@@ -2,24 +2,32 @@
 #include <stdlib.h>
 #include <math.h>
 
+
 #define OPERAND_LENGTH      2
 #define INSTRUCTION_LENGTH  2
-#define MEMORY_SIZE         100
+#define MEMORY_SIZE         100L
 
+#define NOP                 00
 #define READ                10
 #define WRITE               11
+#define READSTR             12
+#define WRITESTR            13
 #define LOAD                20
 #define STORE               21
 #define ADD                 30
 #define SUBTRACT            31
 #define DIVIDE              32
 #define MULTIPLY            33
+#define REMAINDER           34
 #define BRANCH              40
 #define BRANCHNEG           41
 #define BRANCHZERO          42
 #define HALT                43
 
 #define MAX_COLS            10
+
+#define ERRMSG              "\n*** Simpletron execution abnormally terminated ***\n"
+#define SUCCESSMSG          "\n*** Simpletron execution terminated ***\n"
 
 
 struct Simpletron {
@@ -37,14 +45,15 @@ void print_state(struct Simpletron *);
 
 
 void simpletron_greet(void) {
-    puts(
+    printf(
         "*** Welcome to Simpletron! ***\n"
         "*** Please enter your program one instruction ***\n"
         "*** (or data word) at a time. I will type the ***\n"
         "*** location number and a question mark (?). ***\n"
         "*** You then type the word for that location. ***\n"
-        "*** Type the sentinel -99999 to stop entering ***\n"
-        "*** your program. ***\n"
+        "*** Type the sentinel %ld to stop entering ***\n"
+        "*** your program. ***\n\n",
+         (- (long) pow(10, OPERAND_LENGTH + INSTRUCTION_LENGTH + 1) + 1)
     );
 }
 
@@ -65,25 +74,54 @@ void reset(struct Simpletron *simpletron) {
 
 
 enum Status execute_op(struct Simpletron *simpletron) {
+    if (simpletron->instructionCounter < 0 || simpletron->instructionCounter >= MEMORY_SIZE) {
+        printf("*** instructionCounter is not in range 0..%ld ***\n", MEMORY_SIZE);
+        puts(ERRMSG);
+        return FAIL;
+    }
     simpletron->instructionRegister = simpletron->memory[simpletron->instructionCounter++];
     int sign = simpletron->instructionRegister >= 0? 1: -1;
-    simpletron->operationCode = (sign * simpletron->instructionRegister) / 100;
-    simpletron->operand = sign * ((sign * simpletron->instructionRegister) % 100);
+    simpletron->operationCode = (sign * simpletron->instructionRegister) / (long) pow(10, OPERAND_LENGTH);
+    simpletron->operand = sign * ((sign * simpletron->instructionRegister) % (long) pow(10, OPERAND_LENGTH));
+
+    size_t memptr = simpletron->operand;
+    int strchar;
 
     switch (simpletron->operationCode) {
+        case NOP:
+            break;
         case READ:
             printf("%s", "<- ");
             long user_input;
             scanf("%ld", &user_input);
-            if (abs(user_input) < pow(10, OPERAND_LENGTH + INSTRUCTION_LENGTH))
+            if (abs(user_input) < pow(10, OPERAND_LENGTH + INSTRUCTION_LENGTH)) {
                 simpletron->memory[simpletron->operand] = user_input;
-            else {
-                puts("Invalid input. Should be in range -9999..9999");
+            } else {
+                printf(
+                    "*** Invalid input. Should be in range %ld..%ld ***\n",
+                    (long) -pow(10, OPERAND_LENGTH + INSTRUCTION_LENGTH) + 1,
+                    (long) pow(10, OPERAND_LENGTH + INSTRUCTION_LENGTH) - 1
+                );
                 return FAIL;
             }
             break;
         case WRITE:
             printf("-> %+05ld\n", simpletron->memory[simpletron->operand]);
+            break;
+        case READSTR:
+            while ((strchar = getchar()) != EOF && strchar != '\n');
+            printf("%s", "<- ");
+            while ((strchar = getchar()) != '\n') {
+                simpletron->memory[memptr++] = strchar;
+            }
+            simpletron->memory[memptr] = 0;
+            break;
+        case WRITESTR:
+            size_t memptr = simpletron->operand;
+            printf("%s", "-> ");
+            while ((strchar = simpletron->memory[memptr++]) != 0)
+                putchar(strchar);
+            putchar('\n');
             break;
         case LOAD:
             simpletron->accumulator = simpletron->memory[simpletron->operand];
@@ -98,14 +136,31 @@ enum Status execute_op(struct Simpletron *simpletron) {
             simpletron->accumulator -= simpletron->memory[simpletron->operand];
             break;
         case DIVIDE:
-            if (simpletron->memory[simpletron->operand] != 0)
+            if (simpletron->memory[simpletron->operand] != 0) {
                 simpletron->accumulator /= simpletron->memory[simpletron->operand];
-            else
-                printf("Division by zero at %ld\n", simpletron->instructionCounter - 1);
+            } else {
+                printf(
+                    "*** Attempt to divide by zero at %ld ***\n",
+                    simpletron->instructionCounter - 1
+                );
+                puts(ERRMSG);
                 return FAIL;
+            }
             break;
         case MULTIPLY:
             simpletron->accumulator *= simpletron->memory[simpletron->operand];
+            break;
+        case REMAINDER:
+            if (simpletron->memory[simpletron->operand] != 0) {
+                simpletron->accumulator %= simpletron->memory[simpletron->operand];
+            } else {
+                printf(
+                    "*** Attempt to divide by zero at %ld ***\n",
+                    simpletron->instructionCounter - 1
+                );
+                puts(ERRMSG);
+                return FAIL;
+            }
             break;
         case BRANCH:
             simpletron->instructionCounter = simpletron->operand;
@@ -121,17 +176,27 @@ enum Status execute_op(struct Simpletron *simpletron) {
             }
             break;
         case HALT:
-            puts("\n*** Simpletron execution terminated ***\n");
+            puts(SUCCESSMSG);
             return STOP;
             break;
         default:
-            printf("Invalid instruction %ld at %ld\n", simpletron->instructionRegister, simpletron->instructionCounter - 1);
+            printf(
+                "*** Invalid instruction %ld at %ld ***\n",
+                simpletron->instructionRegister, simpletron->instructionCounter - 1
+            );
+            puts(ERRMSG);
             return FAIL;
     }
     if (abs(simpletron->accumulator) < pow(10, OPERAND_LENGTH + INSTRUCTION_LENGTH))
         return EXEC;
     else {
-        printf("Accumulator value %ld is not in range -9999..9999\n", simpletron->accumulator);
+        printf(
+            "*** Accumulator value %ld is not in range %ld..%ld ***\n",
+            simpletron->accumulator,
+            (long) -pow(10, OPERAND_LENGTH + INSTRUCTION_LENGTH) + 1,
+            (long) pow(10, OPERAND_LENGTH + INSTRUCTION_LENGTH) - 1
+        );
+        puts(ERRMSG);
         return FAIL;
     }
 }
@@ -148,10 +213,10 @@ void input_data(struct Simpletron *simpletron) {
         scanf("%ld", &input);
         if (abs(input) < pow(10, OPERAND_LENGTH + INSTRUCTION_LENGTH)) {
             simpletron->memory[simpletron->instructionCounter++] = input;
-        } else if (input != -99999) {
+        } else if (input != (- (long) pow(10, OPERAND_LENGTH + INSTRUCTION_LENGTH + 1) + 1)) {
             puts("Invalid input");
         }
-    } while (input != -99999);
+    } while (input != (- (long) pow(10, OPERAND_LENGTH + INSTRUCTION_LENGTH + 1) + 1));
     soft_reset(simpletron);
 }
 
