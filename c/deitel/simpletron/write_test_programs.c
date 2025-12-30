@@ -1,28 +1,34 @@
-#include <stdint.h>
+#include <assert.h>
 #include <stdio.h>
 #include "simpletron.h"
 
-void write_bindata(void) {
-    FILE *file = fopen("add_numbers.sm", "wb");
-    const int32_t header = 0b11110101;
-    word_t data[] = {0x100a, 0x100b, 0x200a, 0x300b, 0x210c, 0x110c, 0x4300};
-    fwrite(&header, sizeof(int32_t), 1, file);
-    for (size_t i = 0; i < sizeof(data) / sizeof(word_t); i++)
-        fwrite(&data[i], sizeof(word_t), 1, file);
-    fclose(file);
+void write_data(void) {
+    constexpr word_t header = HEADER;
+    const word_t instructions[] = {READ, READ, LOAD, ADD, STORE, WRITE, HALT};
+    const word_t operands[] = {0xa, 0xb, 0xa, 0xb, 0xc, 0xc, 0x0};
+    assert(sizeof(instructions) / sizeof(word_t) == sizeof(operands) / sizeof(word_t));
+    word_t instruction;
+    char charinstr[WORD_BITS / 4 + 2];  // 2 for \n\0
+
+    FILE *binfile = fopen("add_numbers.sm", "wb");
+    FILE *textfile = fopen("add_numbers.sml", "w");
+
+    /* binary file starts with header */
+    fwrite(&header, sizeof(word_t), 1, binfile);
+
+    for (int i = 0; i < sizeof(instructions) / sizeof(word_t); i++) {
+        instruction = (word_t) (instructions[i] << OPERAND_BITS | operands[i]);
+
+        fwrite(&instruction, sizeof(word_t), 1, binfile);
+        sprintf(charinstr, "%*X\n", WORD_BITS / 4, (word_t) instruction);
+        fprintf(textfile, "%s", charinstr);
+    }
+    fclose(binfile);
+    fclose(textfile);
 }
 
-void write_data(void) {
-    /* simpletron machine language */
-    FILE *file = fopen("add_numbers.sml", "w");
-    char data[][WORD_BYTES * 2 + 1] = {"100a", "100b", "200a", "300b", "210c", "110c", "4300"};
-    for (size_t i = 0; i < sizeof(data) / sizeof(char) / (WORD_BYTES * 2 + 1); i++)
-        fprintf(file, "%s\n", data[i]);
-    fclose(file);
-}
 
 int main() {
-    write_bindata();
     write_data();
     return 0;
 }

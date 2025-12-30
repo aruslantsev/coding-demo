@@ -1,24 +1,30 @@
+#pragma once
+
 #include <stdint.h>
+#include <stdio.h>
 
-#define WORD_BYTES          2  // Instruction == one word
-#define OPCODE_BYTES        1
+#define WORD_BITS           16  // Instruction == one word
+#define OPCODE_BITS         8
 
-#if WORD_BYTES == 1
+#if WORD_BITS == 8
 typedef int8_t word_t;
 typedef uint8_t uword_t;
-#elif WORD_BYTES == 2
+typedef int16_t dword_t;  // Extended word for input values, converted to word before assignment
+#elif WORD_BITS == 16
 typedef int16_t word_t;
 typedef uint16_t uword_t;
-#elif WORD_BYTES == 4
+typedef int32_t dword_t;
+#elif WORD_BITS == 32
 typedef int32_t word_t;
 typedef uint32_t uword_t;
+typedef int64_t dword_t;
 #endif
 
-#define OPERAND_BYTES       (WORD_BYTES - OPCODE_BYTES)
-#define MEMORY_SIZE         (1 << (OPERAND_BYTES * 8))  // Memory address stored in operand
+#define OPERAND_BITS        (WORD_BITS - OPCODE_BITS)
+#define MEMORY_SIZE         (1 << OPERAND_BITS)  // Memory address stored in operand
 
-#define USER_INPUT_LENGTH   (2 + 1 + 8 * WORD_BYTES)  // max width for 0b00000000, 2 for 0b, 1 for \0
-#define MAX_VALUE           (1 << (WORD_BYTES * 8))
+#define USER_INPUT_LENGTH   (2 + 1 + WORD_BITS)  // max width for 0b00000000, 2 for 0b, 1 for \0
+#define MAX_VALUE           (1 << WORD_BITS)
 #define STOP_VALUE          MAX_VALUE
 
 /* Instructions */
@@ -45,7 +51,7 @@ typedef uint32_t uword_t;
 
 #define MAX_COLS            0x10
 #define SPACES              2
-#define MEM_ADDR_WIDTH      4
+#define MEM_ADDR_WIDTH      (1 + OPERAND_BITS / 4)
 
 #define ERRMSG              "\n*** Simpletron execution abnormally terminated ***\n"
 #define SUCCESSMSG          "\n*** Simpletron execution terminated ***\n"
@@ -65,13 +71,17 @@ enum Status {STOP, SUCCESS, FAIL};
 void simpletron_greet(void);
 void soft_reset(struct Simpletron *);
 void reset(struct Simpletron *);
-bool check_value(int32_t);
+bool check_value(dword_t);
 enum Status user_input(word_t *);
 enum Status execute_op(struct Simpletron *);
-void print_state(struct Simpletron *);
+void print_state(const struct Simpletron *);
+void input_sml(struct Simpletron *);
+void read_file_sml(struct Simpletron *, const char *);
 
 
 inline void flush_input(void) {
     int strchar;
     while ((strchar = getchar()) != EOF && strchar != '\n') {}
 }
+
+#define HEADER              ((word_t) ((1 << WORD_BITS) - 1))

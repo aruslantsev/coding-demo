@@ -1,0 +1,19 @@
+CC=cc
+CFLAGS=
+
+.PHONY: all clean
+.DEFAULT_GOAL: all
+
+all: clean simpletron example translator
+
+simpletron:
+	$(CC) $(CFLAGS) run_simpletron.c simpletron.c -o simpletron
+
+example:
+	$(CC) $(CFLAGS) write_test_programs.c simpletron.c -o mktestprog
+
+translator:
+	$(CC) $(CFLAGS) translator.c simpletron.c -o smlt
+
+clean:
+	rm simpletron mktestprog smlt || echo Already clean
