@@ -2,7 +2,7 @@
 #include "simpletron.h"
 
 
-int main(int argc, char *argv[]) {
+int main(const int argc, char *argv[]) {
     struct Simpletron simpletron;
     enum Status status;
     if (argc == 1) {
