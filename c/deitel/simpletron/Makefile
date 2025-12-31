@@ -13,7 +13,7 @@ example:
 	$(CC) $(CFLAGS) write_test_programs.c simpletron.c -o mktestprog
 
 translator:
-	$(CC) $(CFLAGS) translator.c simpletron.c -o smlt
+	$(CC) $(CFLAGS) smlt.c translator.c simpletron.c -o smlt
 
 clean:
 	rm simpletron mktestprog smlt || echo Already clean
