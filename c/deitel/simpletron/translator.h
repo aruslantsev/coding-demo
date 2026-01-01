@@ -6,7 +6,7 @@
 
 
 #define IDENTIFIER_SIZE 8
-#define BUFSIZE     255
+#define BUFSIZE         255
 
 enum entrytype {CONST = 'c', LINE = 'l', VAR = 'v'};
 
@@ -24,6 +24,7 @@ struct listEntry {
 
 struct missingEntry {
     int                 label;
+    size_t              address;
     struct missingEntry *next;
 };
 
@@ -41,3 +42,5 @@ size_t addEntry(struct program *, const union identifier, const enum entrytype);
 size_t searchOrAddEntry(struct program *, const union identifier, const enum entrytype);
 bool checkIdentifier(char []);
 void initProgram(struct program *);
+void strip(char [], char []);
+void addMissing(struct program *, const int, const size_t);
