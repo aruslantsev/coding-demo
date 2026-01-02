@@ -42,7 +42,7 @@ bool check_value(const dword_t value) {
 enum Status user_input(word_t *value) {
     char s[USER_INPUT_LENGTH];
     fgets(s, USER_INPUT_LENGTH, stdin);
-    const dword_t parsed_input = (word_t) strtol(s, nullptr, 0);
+    const dword_t parsed_input = (word_t) strtol(s, NULL, 0);
     if (check_value(parsed_input)) {
         *value = (word_t) parsed_input;
         return SUCCESS;
@@ -201,7 +201,7 @@ void input_sml(struct Simpletron *simpletron) {
     do {
         printf("%0*x ? ", OPERAND_BITS / 4, simpletron->instructionCounter);
         fgets(s, USER_INPUT_LENGTH, stdin);
-        input = strtol(s, nullptr, 16);
+        input = strtol(s, NULL, 16);
 
         if (check_value(input)) {
             simpletron->memory[simpletron->instructionCounter++] = (word_t) input;
@@ -242,7 +242,7 @@ void read_file_sml(struct Simpletron *simpletron, const char *filename) {
         char s[USER_INPUT_LENGTH];
         while (!feof(file)) {
             if (fgets(s, USER_INPUT_LENGTH, file) != NULL) {
-                input = strtol(s, nullptr, 16);
+                input = strtol(s, NULL, 16);
                 if (check_value(input)) {
                     simpletron->memory[simpletron->instructionCounter++] = (word_t) input;
                 } else printf("Invalid input: %s\n", s);
