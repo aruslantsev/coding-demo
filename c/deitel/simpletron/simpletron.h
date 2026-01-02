@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <stdbool.h>
 
 #define WORD_BITS           16  // Instruction == one word
 #define OPCODE_BITS         8

@@ -5,8 +5,8 @@
 // #include "simpletron.h"
 
 
-#define IDENTIFIER_SIZE 8
-#define BUFSIZE         255
+#define IDENTIFIER_SIZE     8
+#define BUFFER_SIZE         255
 
 enum entrytype {CONST = 'c', LINE = 'l', VAR = 'v'};
 
@@ -40,7 +40,31 @@ struct program {
 size_t searchEntry(struct program *, const union identifier, const enum entrytype);
 size_t addEntry(struct program *, const union identifier, const enum entrytype);
 size_t searchOrAddEntry(struct program *, const union identifier, const enum entrytype);
+void addMissing(struct program *, const int);
 bool checkIdentifier(char []);
+bool checkInteger(char []);
 void initProgram(struct program *);
 void strip(char [], char []);
-void addMissing(struct program *, const int, const size_t);
+void parseLine(struct program *, char [], const int);
+void parseInput(struct program *, char [], const int);
+void parsePrint(struct program *, char [], const int);
+void parseGoto(struct program *, char [], const int);
+void parseLet(struct program *, char [], const int);
+void parseIf(struct program *, char [], const int);
+
+
+#define TOKEN_SIZE  20
+
+enum tokenType {
+    IDENTIFIER='i', OPERATION='o', BRACE='b'
+};
+
+struct exprToken {
+    char token[TOKEN_SIZE];
+    char token_type;
+    struct exprToken *next;
+};
+
+
+struct exprToken *parseExpression(char []);
+bool transformExpression(struct exprToken *);
