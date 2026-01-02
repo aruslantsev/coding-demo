@@ -67,5 +67,13 @@ int main(const int argc, char *argv[]) {
     fclose(file);
 
     /* Write program */
+    puts("Writing program");
+    FILE *textfile = fopen(argv[2], "w");
+    char charinstr[WORD_BITS / 4 + 2];
+    for (int instructionPtr = 0; instructionPtr < MEMORY_SIZE; instructionPtr++) {
+        sprintf(charinstr, "%*X\n", WORD_BITS / 4, (uword_t) program.memory[instructionPtr]);
+        fprintf(textfile, "%s", charinstr);
+    }
+    fclose(textfile);
     return 0;
 }

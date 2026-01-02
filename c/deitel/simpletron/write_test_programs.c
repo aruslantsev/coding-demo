@@ -3,7 +3,7 @@
 #include "simpletron.h"
 
 void write_data(void) {
-    constexpr word_t header = HEADER;
+    const word_t header = HEADER;
     const word_t instructions[] = {READ, READ, LOAD, ADD, STORE, WRITE, HALT};
     const word_t operands[] = {0xa, 0xb, 0xa, 0xb, 0xc, 0xc, 0x0};
     assert(sizeof(instructions) / sizeof(word_t) == sizeof(operands) / sizeof(word_t));

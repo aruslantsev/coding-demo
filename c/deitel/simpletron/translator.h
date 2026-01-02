@@ -68,3 +68,7 @@ struct exprToken {
 
 struct exprToken *parseExpression(char []);
 bool transformExpression(struct exprToken *);
+
+int cmpOperations(char, char);
+bool isArithmeticOp(const char);
+bool isBrace(const char);

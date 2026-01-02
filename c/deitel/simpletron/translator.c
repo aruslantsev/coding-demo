@@ -55,6 +55,7 @@ size_t searchEntry(
     return -1;
 }
 
+
 size_t addEntry(
     struct program *program,
     const union identifier identifier,
@@ -79,6 +80,15 @@ size_t addEntry(
         newEntry->address = program->instructionPtr;
     } else {
         newEntry->address = program->variablePtr;
+        if (type == CONST) {
+            program->memory[program->variablePtr] = identifier.value;
+#ifdef DEBUG_LT
+            printf(
+                "Writing constant value %d (%0X) at %ld\n", 
+                identifier.value, (word_t) identifier.value, program->variablePtr
+            );
+#endif
+        }
         program->variablePtr--;
     }
     newEntry->next = NULL;
@@ -161,6 +171,7 @@ void initProgram(struct program *program) {
     program->instructionPtr = 0;
     program->variablePtr = MEMORY_SIZE - 1;
 }
+
 
 bool checkIdentifier(char identifier[]) {
     if (strlen(identifier) == 0) return false;
@@ -258,6 +269,7 @@ void parseLine(struct program *program, char line[], const int lineNumber) {
         exit(1);
     }
 }
+
 
 void parseInput(struct program *program, char line[], const int lineNumber) {
     word_t instruction;
@@ -384,7 +396,6 @@ void parseLet(struct program *program, char line[], const int lineNumber) {
     word_t instruction;
     char buffer[BUFFER_SIZE];
     union identifier identifier;
-    size_t address;
 
     strcpy(buffer, line);
     char *bufferStart = buffer;
@@ -406,8 +417,8 @@ void parseLet(struct program *program, char line[], const int lineNumber) {
 #ifdef DEBUG
     printf("Adding variable %s\n", identifier.name);
 #endif
-    address = searchOrAddEntry(program, identifier, VAR);
-    if (address == -1) {
+    size_t left_address = searchOrAddEntry(program, identifier, VAR);
+    if (left_address == -1) {
         printf("Unknown error in line %d\n", lineNumber);
         printf("%s\n", line);
         exit(1);
@@ -477,13 +488,165 @@ void parseLet(struct program *program, char line[], const int lineNumber) {
 
     /* Generate code */
     current_token = expr_start;
+    word_t currentStackPointer = program->variablePtr;
+    char operationStack[BUFFER_SIZE];
+    size_t stackPtr = 0;
+    size_t address;
+    while (current_token != NULL) {
+        printf("Token %s\n", current_token->token);
+        if (current_token->token_type == IDENTIFIER) {
+            // Load to stack
+            union identifier identifier;
+            if (checkInteger(current_token->token)) {
+                identifier.value = atoi(current_token->token);
+                address = searchEntry(program, identifier, CONST);
+            } else if (checkIdentifier(current_token->token)) {
+                strcpy(identifier.name, current_token->token);
+                address = searchEntry(program, identifier, VAR);
+            } else {
+                printf("%s is not a valid identifiers in line %d\n", current_token->token, lineNumber);
+                printf("%s\n", line);
+                exit(1);
+            }
+            instruction = LOAD << OPERAND_BITS | address;
+            printf("FROM MEM %X\n", (word_t) instruction);
+            program->memory[program->instructionPtr++] = instruction;
+            address = program->variablePtr--;
+            instruction = STORE << OPERAND_BITS | address;
+            printf("TO STACK %X\n", (word_t) instruction);
+            program->memory[program->instructionPtr++] = instruction;
+        } else if (current_token->token_type == OPERATION) {
+            while (
+                stackPtr > 0 
+                && isArithmeticOp(operationStack[stackPtr - 1]) 
+                && cmpOperations(current_token->token[0], operationStack[stackPtr - 1]) <= 0
+            ) {
+                instruction = LOAD << OPERAND_BITS | ++(program->variablePtr);
+                printf("FROM STACK %X\n", (word_t) instruction);
+                program->memory[program->instructionPtr++] = instruction;
+                switch (operationStack[stackPtr - 1]) {
+                    case '+':
+                        instruction = ADD;
+                        break;
+                    case '-':
+                        instruction = SUBTRACT;
+                        break;
+                    case '*':
+                        instruction = MULTIPLY;
+                        break;
+                    case '/':
+                        instruction = DIVIDE;
+                        break;
+                    case '%':
+                        instruction = REMAINDER;
+                        break;
+                    default:
+                        printf("Unknown operation '%c'\n", operationStack[stackPtr - 1]);
+                        exit(1);
+                }
+                stackPtr--;
+                instruction = instruction << OPERAND_BITS | ++(program->variablePtr);
+                printf("ARITH_OP %X\n", (word_t) instruction);
+                program->memory[program->instructionPtr++] = instruction;
+                instruction = STORE << OPERAND_BITS | program->variablePtr--;
+                printf("TO STACK %X\n", (word_t) instruction);
+                program->memory[program->instructionPtr++] = instruction;
+            }
+            operationStack[stackPtr++] = current_token->token[0];
+        } else if (current_token->token_type == BRACE) {
+            if (current_token->token[0] == '(') {
+                operationStack[stackPtr++] = current_token->token[0];
+            } else {
+                while (operationStack[stackPtr - 1] != '(') {
+                    instruction = LOAD << OPERAND_BITS | ++(program->variablePtr);
+                    printf("FROM STACK %X\n", (word_t) instruction);
+                    program->memory[program->instructionPtr++] = instruction;
+                    switch (operationStack[stackPtr - 1]) {
+                        case '+':
+                            instruction = ADD;
+                            break;
+                        case '-':
+                            instruction = SUBTRACT;
+                            break;
+                        case '*':
+                            instruction = MULTIPLY;
+                            break;
+                        case '/':
+                            instruction = DIVIDE;
+                            break;
+                        case '%':
+                            instruction = REMAINDER;
+                            break;
+                        default:
+                            printf("Unknown operation '%c'\n", operationStack[stackPtr - 1]);
+                            exit(1);
+                    }
+                    printf("TEMPLATE %X\n", (word_t) instruction);
+                    stackPtr--;
+                    instruction = instruction << OPERAND_BITS | ++(program->variablePtr);
+                    printf("ARITH_OP %X\n", (word_t) instruction);
+                    program->memory[program->instructionPtr++] = instruction;
+                    instruction = STORE << OPERAND_BITS | program->variablePtr--;
+                    printf("TO STACK %X\n", (word_t) instruction);
+                    program->memory[program->instructionPtr++] = instruction;
+                }
+                --stackPtr;
+            }
+        }
+        current_token = current_token->next;
+    }
+    while (stackPtr > 0) {
+        instruction = LOAD << OPERAND_BITS | ++(program->variablePtr);
+        printf("FROM STACK %X\n", (word_t) instruction);
+        program->memory[program->instructionPtr++] = instruction;
+        switch (operationStack[stackPtr - 1]) {
+            case '+':
+                instruction = ADD;
+                break;
+            case '-':
+                instruction = SUBTRACT;
+                break;
+            case '*':
+                instruction = MULTIPLY;
+                break;
+            case '/':
+                instruction = DIVIDE;
+                break;
+            case '%':
+                instruction = REMAINDER;
+                break;
+            default:
+                printf("Unknown operation '%c'\n", operationStack[stackPtr - 1]);
+                exit(1);
+        }
+        printf("TEMPLATE %X\n", (word_t) instruction);
+        stackPtr--;
+        instruction = instruction << OPERAND_BITS | ++(program->variablePtr);
+        printf("ARITH_OP %X\n", (word_t) instruction);
+        program->memory[program->instructionPtr++] = instruction;
+        instruction = STORE << OPERAND_BITS | program->variablePtr--;
+        printf("TO STACK %X\n", (word_t) instruction);
+        program->memory[program->instructionPtr++] = instruction;
+    }
+    instruction = LOAD << OPERAND_BITS | ++(program->variablePtr);
+    program->memory[program->instructionPtr++] = instruction;
+    instruction = STORE << OPERAND_BITS | left_address;
+    program->memory[program->instructionPtr++] = instruction;
+#ifdef DEBUG
+    if (program->variablePtr != currentStackPointer) {
+        puts("Stack is in dirty state");
+    }
+#endif
 
     /* Cleanup */
+    current_token = expr_start;
     while (current_token != NULL) {
         expr_start = current_token->next;
         free(current_token);
         current_token = expr_start;
     }
+
+    // # Assign value
 }
 
 
@@ -556,11 +719,18 @@ void parseIf(struct program *program, char line[], const int lineNumber) {
 
 
 bool isArithmeticOp(const char c) {
-    return c == '+' || c == '-' || c == '*' || c == '/';
+    return c == '+' || c == '-' || c == '*' || c == '/' || c == '%';
 }
 
 bool isBrace(const char c) {
     return c == '(' || c == ')';
+}
+
+
+int cmpOperations(char op1, char op2) {
+    if ((op1 == '+' || op1 == '-') && (op2 == '*' || op2 == '/' || op2 == '%')) return -1;
+    if ((op1 == '*' || op1 == '/' || op2 == '%') && (op2 == '+' || op2 == '-')) return 1;
+    return 0;
 }
 
 
