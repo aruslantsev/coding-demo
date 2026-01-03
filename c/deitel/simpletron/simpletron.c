@@ -110,11 +110,11 @@ enum Status execute_op(struct Simpletron *simpletron) {
             simpletron->accumulator += simpletron->memory[simpletron->operand];
             break;
         case SUBTRACT:
-            simpletron->accumulator -= simpletron->memory[simpletron->operand];
+            simpletron->accumulator = simpletron->memory[simpletron->operand] - simpletron->accumulator;
             break;
         case DIVIDE:
-            if (simpletron->memory[simpletron->operand] != 0) {
-                simpletron->accumulator /= simpletron->memory[simpletron->operand];
+            if (simpletron->accumulator != 0) {
+                simpletron->accumulator = simpletron->memory[simpletron->operand] / simpletron->accumulator;
             } else {
                 printf("*** Attempt to divide by zero at %d ***\n", simpletron->instructionCounter - 1);
                 puts(ERRMSG);
@@ -125,8 +125,8 @@ enum Status execute_op(struct Simpletron *simpletron) {
             simpletron->accumulator *= simpletron->memory[simpletron->operand];
             break;
         case REMAINDER:
-            if (simpletron->memory[simpletron->operand] != 0) {
-                simpletron->accumulator %= simpletron->memory[simpletron->operand];
+            if (simpletron->accumulator != 0) {
+                simpletron->accumulator = simpletron->memory[simpletron->operand] % simpletron->accumulator;
             } else {
                 printf("*** Attempt to divide by zero at %d ***\n", simpletron->instructionCounter - 1);
                 puts(ERRMSG);
