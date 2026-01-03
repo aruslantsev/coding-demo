@@ -39,8 +39,8 @@ size_t searchEntry(
         printf(", address %ld\n", lookupListPtr->address);
 #endif
         if (
-            (type == VAR && strcmp(lookupListPtr->identifier.name, identifier.name) == 0)
-            || ((type == CONST || type == LINE) && lookupListPtr->identifier.value == identifier.value)
+            (type == VAR && type == lookupListPtr->type && strcmp(lookupListPtr->identifier.name, identifier.name) == 0)
+            || ((type == CONST || type == LINE)  && type == lookupListPtr->type && lookupListPtr->identifier.value == identifier.value)
         ) {
 #ifdef DEBUG_LT
             printf("Found, address: %ld\n", lookupListPtr->address);
