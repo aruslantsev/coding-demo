@@ -9,28 +9,29 @@
 #define DEBUG
 
 int main(const int argc, char *argv[]) {
-    if (argc != 3) {
+    if (argc != 3 || strcmp(argv[0], "--help") == 0 || strcmp(argv[0], "-h") == 0) {
         puts("Usage:");
         printf("\t%s\tFILENAME.bas OUTFILE.sml\n", argv[0]);
+        return 0;
     }
 
-    FILE *file = fopen(argv[1], "r");
-    if (file == NULL) {
+    FILE *program_file = fopen(argv[1], "r");
+    if (program_file == NULL) {
         puts("Error opening file");
         exit(1);
     }
 
     struct program program;
     char buffer[BUFFER_SIZE];
-    int lineNumber = 0;
+    int line_number = 0;
     union identifier identifier;
     size_t address;
 
     initProgram(&program);
 
-    while (!feof(file)) {
-        if (fgets(buffer, BUFFER_SIZE, file) != NULL) {
-            lineNumber++;
+    while (!feof(program_file)) {
+        if (fgets(buffer, BUFFER_SIZE, program_file) != NULL) {
+            line_number++;
             printf("%s", buffer);
             /* Remove trailing newline symbols before tokenization */
             buffer[strcspn(buffer, "\r\n")] = '\0';
@@ -38,7 +39,7 @@ int main(const int argc, char *argv[]) {
             printf("%s\n", buffer);
             /* Skip empty string */
             if (strlen(buffer) == 0) continue;
-            parseLine(&program, buffer, lineNumber);
+            parseLine(&program, buffer, line_number);
         }
     }
 
@@ -57,23 +58,23 @@ int main(const int argc, char *argv[]) {
         }
 #ifdef DEBUG
         printf(
-            "Instruction at address %ld references line %d. Real address: %ld\n",
-            missingPtr->address, missingPtr->label, address
+            "Instruction at address %0X references line %d. Real address: %ld\n",
+            (word_t) missingPtr->address, missingPtr->label, address
         );
 #endif
         program.memory[missingPtr->address] |= address;
         missingPtr = missingPtr->next;
     }
-    fclose(file);
+    fclose(program_file);
 
     /* Write program */
     puts("Writing program");
-    FILE *textfile = fopen(argv[2], "w");
-    char charinstr[WORD_BITS / 4 + 2];
+    FILE *sml_file = fopen(argv[2], "w");
+    char char_instruction[WORD_BITS / 4 + 2];
     for (int instructionPtr = 0; instructionPtr < MEMORY_SIZE; instructionPtr++) {
-        sprintf(charinstr, "%*X\n", WORD_BITS / 4, (uword_t) program.memory[instructionPtr]);
-        fprintf(textfile, "%s", charinstr);
+        sprintf(char_instruction, "%*X\n", WORD_BITS / 4, (uword_t) program.memory[instructionPtr]);
+        fprintf(sml_file, "%s", char_instruction);
     }
-    fclose(textfile);
+    fclose(sml_file);
     return 0;
 }

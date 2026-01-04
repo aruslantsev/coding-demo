@@ -51,7 +51,7 @@ enum Status user_input(word_t *value) {
 }
 
 
-enum Status execute_op(struct Simpletron *simpletron) {
+enum Status execute_operation(struct Simpletron *simpletron) {
     if (simpletron->instructionCounter < 0 || simpletron->instructionCounter >= MEMORY_SIZE) {
         printf("*** instructionCounter is not in range 0..%d ***\n", MEMORY_SIZE);
         puts(ERRMSG);

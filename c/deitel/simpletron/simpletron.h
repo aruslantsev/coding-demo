@@ -74,7 +74,7 @@ void soft_reset(struct Simpletron *);
 void reset(struct Simpletron *);
 bool check_value(dword_t);
 enum Status user_input(word_t *);
-enum Status execute_op(struct Simpletron *);
+enum Status execute_operation(struct Simpletron *);
 void print_state(const struct Simpletron *);
 void input_sml(struct Simpletron *);
 void read_file_sml(struct Simpletron *, const char *);

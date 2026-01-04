@@ -65,10 +65,7 @@ struct exprToken {
     struct exprToken *next;
 };
 
+bool checkExpression(const char []);
+bool evalExpression(char [], struct program *);
 
-struct exprToken *parseExpression(char []);
-bool transformExpression(struct exprToken *);
-
-int cmpOperations(char, char);
-bool isArithmeticOp(const char);
-bool isBrace(const char);
+enum comparison {GE, GT, LE, LT, EQ, NE};
