@@ -114,25 +114,29 @@ bool transformAndCheckExpression(struct exprToken *exprStart) {
         printf("Got token '%s' with type '%c'. Token number %d\n", currentToken->token, currentToken->token_type, tokencnt);
 #endif
         if (tokencnt > MAX_TOKENS) return false;
-        
-        /* Check braces */
-        if (currentToken->token_type == BRACE) {
-            if (currentToken->token[0] == '(') bracesCount++;
-            else {
-                bracesCount--;
-                if (bracesCount < 0) return false;
-            }
-        }
 
         /* Two identifiers without operation between them */
         if (currentToken->token_type == IDENTIFIER) 
             if (currentToken->next != NULL && currentToken->next->token_type == IDENTIFIER) return false;
 
-        if (currentToken->token_type == OPERATION) {
-            if (currentToken->next != NULL && currentToken->next->token_type == OPERATION) {
-                /* Three operations without identifiers or two trailing operations */
+        if (currentToken->token_type == BRACE || currentToken->token_type == OPERATION) {
+            /* Count braces */
+            if (currentToken->token_type == BRACE) {
+                if (currentToken->token[0] == '(') bracesCount++;
+                else {
+                    bracesCount--;
+                    if (bracesCount < 0) return false;
+                }
+            }
+            if (
+                (
+                    currentToken->token_type == OPERATION 
+                    || (currentToken->token_type == BRACE && currentToken->token[0] == '(')
+                ) && currentToken->next != NULL && currentToken->next->token_type == OPERATION
+            ) {
+                /* Three operations without identifiers or two trailing operations or opening brace and t2o operations */
                 if (currentToken->next->next == NULL || currentToken->next->next->token_type == OPERATION) return false;
-                /* Two operations without identifiers: second can be only unary + or unary - */
+                /* Two operations without identifiers or opening brace and operation: second can be only unary + or unary - */
                 if (currentToken->next->token[0] == '+' || currentToken->next->token[0] == '-') {
                     // transform unary - or unary + to (-1 * ...) or (+1 * ...)
                     currentToken->next->token[1] = '1';
