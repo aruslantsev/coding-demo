@@ -1,253 +1,296 @@
 #include <ctype.h>
 #include <stdio.h>
-#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include "evaluate.h"
 
-#define MAX_TOKENS      255
+#define DEBUG_EVAL
 
-#define DEBUG
 
-bool isArithmeticOp(const char c) {
+bool is_arithmetic_operation(const char c) {
     return c == '+' || c == '-' || c == '*' || c == '/' || c == '%';
 }
 
 
-bool isBrace(const char c) {
+bool is_parentheses(const char c) {
     return c == '(' || c == ')';
 }
 
 
-int cmpOperations(char op1, char op2) {
+int compare_operations(const char op1, const char op2) {
     if ((op1 == '+' || op1 == '-') && (op2 == '*' || op2 == '/' || op2 == '%')) return -1;
     if ((op1 == '*' || op1 == '/' || op2 == '%') && (op2 == '+' || op2 == '-')) return 1;
     return 0;
 }
 
 
-struct exprToken *tokenizeExpression(char expression[]) {
+struct ExpressionToken *tokenize_expression(char expression[]) {
     /* Add trailing space. Last token will be saved automatically */
     strcat(expression, " ");
+#ifdef DEBUG_EVAL
+    printf("Tokenizing expression '%s'\n", expression);
+#endif
 
-    struct exprToken *start = NULL, *currentToken;
-    char currentIdentifier[TOKEN_SIZE];
-    size_t tokenIndex = 0;
+    struct ExpressionToken *start = NULL, *current_token = NULL;
+    char current_identifier[TOKEN_SIZE];
+    size_t token_idx = 0;
     const char *c = expression;
     while (*c != '\0') {
-        /* Operation, brace, blank, end of line == token separator */
-        if (isBrace(*c) || isArithmeticOp(*c) || isblank(*c) || *c == '\n' || *c == '\0') {
+        /* Operation, parentheses, blank, end of line == token separator */
+        if (is_parentheses(*c) || is_arithmetic_operation(*c) || isblank(*c) || *c == '\n' || *c == '\0') {
             /* Something was read during previous step */
-            if (tokenIndex > 0) {
+            if (token_idx > 0) {
                 /* Save token */
-                currentIdentifier[tokenIndex] = '\0';
-                struct exprToken *token = (struct exprToken *) malloc(sizeof(struct exprToken));
-                strcpy(token->token, currentIdentifier);
-#ifdef DEBUG
-                printf("Adding token %s\n", token->token);
+                current_identifier[token_idx] = '\0';
+                struct ExpressionToken *token = (struct ExpressionToken *) malloc(sizeof(struct ExpressionToken));
+                strcpy(token->token, current_identifier);
+#ifdef DEBUG_EVAL
+                printf("Infix notation: adding token %s\n", token->token);
 #endif
                 token->token_type = IDENTIFIER;
-                tokenIndex = 0;
+                token_idx = 0;
                 if (start == NULL) {
                     start = token;
-                    currentToken = start;
+                    current_token = start;
                 } else {
-                    currentToken->next = token;
-                    currentToken = currentToken->next;
+                    current_token->next = token;
+                    current_token = current_token->next;
                 }
             }
-            if (isBrace(*c) || isArithmeticOp(*c)) {
-                /* Save braces and operations: read single symbol to token */
-                struct exprToken *token = (struct exprToken *) malloc(sizeof(struct exprToken));
+            if (is_parentheses(*c) || is_arithmetic_operation(*c)) {
+                /* Save parentheses and operations: read single symbol to token */
+                struct ExpressionToken *token = (struct ExpressionToken *) malloc(sizeof(struct ExpressionToken));
                 token->token[0] = *c;
                 token->token[1] = '\0';
-                if (isArithmeticOp(*c)) token->token_type = OPERATION;
-                else token->token_type = BRACE;
-#ifdef DEBUG
-                printf("Adding token %s\n", token->token);
+                if (is_arithmetic_operation(*c)) token->token_type = OPERATION;
+                else token->token_type = PARENTHESES;
+                token->next = NULL;
+#ifdef DEBUG_EVAL
+                printf("Infix notation: adding token %s\n", token->token);
 #endif
                 if (start == NULL) {
                     start = token;
-                    currentToken = start;
+                    current_token = start;
                 } else {
-                    currentToken->next = token;
-                    currentToken = currentToken->next;
+                    current_token->next = token;
+                    current_token = current_token->next;
                 }
             }
             c++;
         } else {
-            while (!(isBrace(*c) || isArithmeticOp(*c) || isblank(*c) || *c == '\n' || *c == '\0')) {
+            while (!(is_parentheses(*c) || is_arithmetic_operation(*c) || isblank(*c) || *c == '\n' || *c == '\0')) {
                 /* Symbol. Save to token */
-                currentIdentifier[tokenIndex++] = *c;
+                current_identifier[token_idx++] = *c;
                 c++;
             }
         }
     }
-    if (transformAndCheckExpression(start)) {
-        return toPostfix(start);
+    if (transform_and_check_expression(start)) {
+        return to_postfix_notation(start);
     }
     return NULL;
 }
 
 
-bool transformAndCheckExpression(struct exprToken *exprStart) {
-    int bracesCount = 0;
-    struct exprToken *currentToken;
-    currentToken = exprStart;
-    int tokencnt = 0;
+bool transform_and_check_expression(struct ExpressionToken *expression_start) {
+#ifdef DEBUG_EVAL
+    puts("Checking and transforming expression");
+#endif
+    int parentheses_count = 0;
+    struct ExpressionToken *current_token = expression_start;
+    int token_cnt = 0;
     /* Leading unary operator */
-    if (currentToken != NULL && currentToken->token_type == OPERATION) {
-        if (currentToken->token[0] == '+' || currentToken->token[0] == '-') {
-            currentToken->token_type = IDENTIFIER;
-            currentToken->token[1] = '1';
-            currentToken->token[2] = '\0';
-            struct exprToken *tmpToken = (struct exprToken *) malloc(sizeof(struct exprToken));
-            tmpToken->token_type = OPERATION;
-            strcpy(tmpToken->token, "*");
-            tmpToken->next = currentToken->next;
-            currentToken->next = tmpToken;
-        } else return false;
+    if (current_token != NULL && current_token->token_type == OPERATION) {
+        if (current_token->token[0] == '+' || current_token->token[0] == '-') {
+#ifdef DEBUG_EVAL
+            puts("Unary plus or minus found");
+#endif
+            current_token->token_type = IDENTIFIER;
+            current_token->token[1] = '1';
+            current_token->token[2] = '\0';
+            struct ExpressionToken *tmp_token = (struct ExpressionToken *) malloc(sizeof(struct ExpressionToken));
+            tmp_token->token_type = OPERATION;
+            strcpy(tmp_token->token, "*");
+            tmp_token->next = current_token->next;
+            current_token->next = tmp_token;
+        } else {
+            return false;
+        }
     }
     /* Other tokens */
-    while (currentToken != NULL) {
-#ifdef DEBUG
-        printf("Got token '%s' with type '%c'. Token number %d\n", currentToken->token, currentToken->token_type, tokencnt);
+    while (current_token != NULL) {
+#ifdef DEBUG_EVAL
+        printf("Got token '%s' with type '%c'. Token number %d\n", current_token->token, current_token->token_type, token_cnt);
 #endif
-        if (tokencnt > MAX_TOKENS) return false;
+        if (token_cnt > MAX_TOKENS)
+            return false;
 
         /* Two identifiers without operation between them */
-        if (currentToken->token_type == IDENTIFIER) 
-            if (currentToken->next != NULL && currentToken->next->token_type == IDENTIFIER) return false;
+        if (current_token->token_type == IDENTIFIER)
+            if (current_token->next != NULL && current_token->next->token_type == IDENTIFIER) {
+                puts("Error: Found two tokens without operation between them.");
+                return false;
+            }
 
-        if (currentToken->token_type == BRACE || currentToken->token_type == OPERATION) {
-            /* Count braces */
-            if (currentToken->token_type == BRACE) {
-                if (currentToken->token[0] == '(') bracesCount++;
-                else {
-                    bracesCount--;
-                    if (bracesCount < 0) return false;
+        if (current_token->token_type == PARENTHESES || current_token->token_type == OPERATION) {
+            /* Count parentheses */
+            if (current_token->token_type == PARENTHESES) {
+                if (current_token->token[0] == '(') {
+                    parentheses_count++;
+                    if (current_token->next != NULL && current_token->next->token_type == PARENTHESES && current_token->next->token[0] == ')') {
+                        puts("Error: Parentheses without expression inside.");
+                        return false;
+                    }
+                } else {
+                    parentheses_count--;
+                    if (parentheses_count < 0) {
+                        puts("Error: Found closing parentheses without corresponding opening one.");
+                        return false;
+                    }
                 }
             }
             if (
                 (
-                    currentToken->token_type == OPERATION 
-                    || (currentToken->token_type == BRACE && currentToken->token[0] == '(')
-                ) && currentToken->next != NULL && currentToken->next->token_type == OPERATION
+                    current_token->token_type == OPERATION
+                    || (current_token->token_type == PARENTHESES && current_token->token[0] == '(')
+                ) && current_token->next != NULL && current_token->next->token_type == OPERATION
             ) {
-                /* Three operations without identifiers or two trailing operations or opening brace and t2o operations */
-                if (currentToken->next->next == NULL || currentToken->next->next->token_type == OPERATION) return false;
-                /* Two operations without identifiers or opening brace and operation: second can be only unary + or unary - */
-                if (currentToken->next->token[0] == '+' || currentToken->next->token[0] == '-') {
+                /* Three operations without identifiers or two trailing operations
+                 * or opening parentheses and two operations */
+                if (current_token->next->next == NULL || current_token->next->next->token_type == OPERATION) {
+                    puts("Error: three consecutive operators or opening parentheses and two operators found.");
+                    return false;
+                }
+
+                /* Two operations without identifiers or opening parentheses and operation:
+                 * second can be only unary + or unary -  */
+                if (current_token->next->token[0] == '+' || current_token->next->token[0] == '-') {
+#ifdef DEBUG_EVAL
+                    puts("Unary plus or minus found");
+#endif
                     // transform unary - or unary + to (-1 * ...) or (+1 * ...)
-                    currentToken->next->token[1] = '1';
-                    currentToken->next->token[2] = '\0';
-                    currentToken->next->token_type = IDENTIFIER;
-                    struct exprToken *tmpToken = (struct exprToken *) malloc(sizeof(struct exprToken));
-                    tmpToken->token_type = OPERATION;
-                    strcpy(tmpToken->token, "*");
-                    tmpToken->next = currentToken->next->next;
-                    currentToken->next->next = tmpToken;
+                    current_token->next->token[1] = '1';
+                    current_token->next->token[2] = '\0';
+                    current_token->next->token_type = IDENTIFIER;
+                    struct ExpressionToken *tmp_token = (struct ExpressionToken *) malloc(sizeof(struct ExpressionToken));
+                    tmp_token->token_type = OPERATION;
+                    strcpy(tmp_token->token, "*");
+                    tmp_token->next = current_token->next->next;
+                    current_token->next->next = tmp_token;
                 } else return false;
             }
         }
-        currentToken = currentToken->next;
-        tokencnt++;
+        current_token = current_token->next;
+        token_cnt++;
     }
-    return bracesCount == 0;
+    return parentheses_count == 0;
 }
 
-
-struct exprToken *toPostfix(struct exprToken *exprStart) {
-    struct exprToken *postfixExpr = NULL;
-    struct exprToken *currentToken = NULL;
-    struct exprToken *tmpToken = NULL;
-    struct exprToken *operationStack[MAX_TOKENS];
-    size_t stackPtr = 0;
-
-    while (exprStart != NULL) {
-#ifdef DEBUG
-        printf("Token %s %c\n", exprStart->token, exprStart->token_type);
+struct ExpressionToken *to_postfix_notation(struct ExpressionToken *expression_start) {
+#ifdef DEBUG_EVAL
+    puts("Converting to postfix notation.");
 #endif
-        if (exprStart->token_type == IDENTIFIER) {
-#ifdef DEBUG
-            puts("To output queue");
+    struct ExpressionToken *current_infix_token = expression_start;
+    struct ExpressionToken *postfix_expression = NULL;
+    struct ExpressionToken *current_postfix_token = NULL;
+    struct ExpressionToken *tmp_token = NULL;
+    struct ExpressionToken *operations_stack[MAX_TOKENS];
+    size_t stack_ptr = 0;
+
+    while (current_infix_token != NULL) {
+#ifdef DEBUG_EVAL
+        printf("Token '%s', type '%c'\n", current_infix_token->token, current_infix_token->token_type);
+#endif
+        if (current_infix_token->token_type == IDENTIFIER) {
+#ifdef DEBUG_EVAL
+            puts("Placing token to output queue.");
 #endif
             /* Add identifier to queue */
-            if (postfixExpr == NULL) {
-                postfixExpr = exprStart;
-                currentToken = exprStart;
-                exprStart = exprStart->next;
-                currentToken->next = NULL;
+            if (postfix_expression == NULL) {
+                postfix_expression = current_infix_token;
+                current_postfix_token = current_infix_token;
+                current_infix_token = current_infix_token->next;
+                current_postfix_token->next = NULL;
             } else {
-                currentToken->next = exprStart;
-                currentToken = currentToken->next;
-                exprStart = exprStart->next;
-                currentToken->next = NULL;
+                current_postfix_token->next = current_infix_token;
+                current_postfix_token = current_postfix_token->next;
+                current_infix_token = current_infix_token->next;
+                current_postfix_token->next = NULL;
             }
-        } else if (exprStart->token_type == OPERATION) {
+        } else if (current_infix_token->token_type == OPERATION) {
             while (
-                stackPtr > 0
-                && operationStack[stackPtr - 1]->token_type == OPERATION
-                && cmpOperations(exprStart->token[0], operationStack[stackPtr - 1]->token[0]) <= 0
+                stack_ptr > 0
+                && operations_stack[stack_ptr - 1]->token_type == OPERATION
+                && compare_operations(current_infix_token->token[0], operations_stack[stack_ptr - 1]->token[0]) <= 0
             ) {
-#ifdef DEBUG
-                puts("From stack");
+#ifdef DEBUG_EVAL
+                printf("Moving token '%s', type '%c' from stack to output queue.\n", operations_stack[stack_ptr - 1]->token, operations_stack[stack_ptr - 1]->token_type);
 #endif
-                currentToken->next = operationStack[--stackPtr];
-                currentToken = currentToken->next;
-                currentToken->next = NULL;
+                current_postfix_token->next = operations_stack[--stack_ptr];
+                current_postfix_token = current_postfix_token->next;
+                current_postfix_token->next = NULL;
             }
-#ifdef DEBUG
-            puts("To stack");
+#ifdef DEBUG_EVAL
+            printf("Placing token '%s', type '%c' to stack\n", current_infix_token->token, current_infix_token->token_type);
 #endif
-            operationStack[stackPtr++] = exprStart;
-            exprStart = exprStart->next;
-            operationStack[stackPtr - 1]->next = NULL;
-        } else if (exprStart->token_type == BRACE && exprStart->token[0] == '(') {
-#ifdef DEBUG
-            puts("To stack (opening brace)");
+            operations_stack[stack_ptr++] = current_infix_token;
+            current_infix_token = current_infix_token->next;
+            operations_stack[stack_ptr - 1]->next = NULL;
+        } else if (current_infix_token->token_type == PARENTHESES && current_infix_token->token[0] == '(') {
+#ifdef DEBUG_EVAL
+            puts("To stack (opening parentheses).");
 #endif
-            operationStack[stackPtr++] = exprStart;
-            exprStart = exprStart->next;
-            operationStack[stackPtr - 1]->next = NULL;
-        } else if (exprStart->token_type == BRACE  && exprStart->token[0] == ')') {
+            operations_stack[stack_ptr++] = current_infix_token;
+            current_infix_token = current_infix_token->next;
+            operations_stack[stack_ptr - 1]->next = NULL;
+        } else if (current_infix_token->token_type == PARENTHESES  && current_infix_token->token[0] == ')') {
+#ifdef DEBUG_EVAL
+            puts("Closing parentheses.");
+#endif
             while (
-                stackPtr > 0 && operationStack[stackPtr - 1]->token_type != BRACE
+                stack_ptr > 0 && operations_stack[stack_ptr - 1]->token_type != PARENTHESES
             ) {
-#ifdef DEBUG
-                puts("From stack (closing brace)");
+#ifdef DEBUG_EVAL
+                printf("Moving token '%s', type '%c' from stack to output queue.\n", operations_stack[stack_ptr - 1]->token, operations_stack[stack_ptr - 1]->token_type);
 #endif
-                currentToken->next = operationStack[--stackPtr];
-                currentToken = currentToken->next;
-                currentToken->next = NULL;
+                current_postfix_token->next = operations_stack[--stack_ptr];
+                current_postfix_token = current_postfix_token->next;
+                current_postfix_token->next = NULL;
             }
-            puts("Pop bracket");
-            tmpToken = operationStack[--stackPtr];
-            free(tmpToken);
-            tmpToken = exprStart;
-            exprStart = exprStart->next;
-            free(tmpToken);
+            puts("Pop opening parentheses.");
+            tmp_token = operations_stack[--stack_ptr];
+            free(tmp_token);
+            tmp_token = current_infix_token;
+            current_infix_token = current_infix_token->next;
+            free(tmp_token);
         }
     }
-    while (stackPtr > 0) {
-#ifdef DEBUG
-        puts("From stack (end of expr)");
-#endif
-        currentToken->next = operationStack[--stackPtr];
-        currentToken = currentToken->next;
-        currentToken->next = NULL;
+#ifdef DEBUG_EVAL
+    if (stack_ptr > 0) {
+        puts("Stack is not empty.");
     }
-#ifdef DEBUG
-    int tokenCnt = 0;
-    currentToken = postfixExpr;
+#endif
+    while (stack_ptr > 0) {
+#ifdef DEBUG_EVAL
+        printf("Moving token '%s', type '%c' from stack to output queue.\n", operations_stack[stack_ptr - 1]->token, operations_stack[stack_ptr - 1]->token_type);
+#endif
+        current_postfix_token->next = operations_stack[--stack_ptr];
+        current_postfix_token = current_postfix_token->next;
+        current_postfix_token->next = NULL;
+    }
+#ifdef DEBUG_EVAL
+    int token_cnt = 0;
+    current_postfix_token = postfix_expression;
     puts("Postfix expression");
-    while (currentToken != NULL) {
-        printf("%s ", currentToken->token);
-        currentToken = currentToken->next;
-        tokenCnt++;
-        if (tokenCnt > MAX_TOKENS) exit(1);
+    while (current_postfix_token != NULL) {
+        printf("%s ", current_postfix_token->token);
+        current_postfix_token = current_postfix_token->next;
+        token_cnt++;
+        if (token_cnt > MAX_TOKENS) {
+            exit(1);
+        }
     }
     puts("");
 #endif
-    return postfixExpr;
+    return postfix_expression;
 }

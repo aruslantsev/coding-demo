@@ -2,70 +2,59 @@
 #include <stddef.h>
 
 #include "simpletron.h"
-// #include "simpletron.h"
 
 
 #define IDENTIFIER_SIZE     8
 #define BUFFER_SIZE         255
 
-enum entrytype {CONST = 'c', LINE = 'l', VAR = 'v'};
+enum EntryType {CONST = 'c', LINE = 'l', VAR = 'v'};
 
-union identifier {
+union Identifier {
     int value;
     char name[IDENTIFIER_SIZE];
 };
 
-struct listEntry {
-    union identifier    identifier;
-    enum entrytype      type;
-    size_t              address;
-    struct listEntry    *next;
+struct LookupListEntry {
+    union Identifier            identifier;
+    enum EntryType              type;
+    size_t                      address;
+    struct LookupListEntry      *next;
 };
 
-struct missingEntry {
-    int                 label;
-    size_t              address;
-    struct missingEntry *next;
+struct MissingRefListEntry {
+    int                         label;
+    size_t                      address;
+    struct MissingRefListEntry  *next;
 };
 
-struct program {
-    struct listEntry    *lookupList;
-    struct missingEntry *missingList;
-    word_t              memory[MEMORY_SIZE];
-    size_t              instructionPtr;
-    size_t              variablePtr;
+struct Program {
+    struct LookupListEntry      *lookup_list;
+    struct MissingRefListEntry  *MissingRefList;
+    word_t                      memory[MEMORY_SIZE];
+    size_t                      instruction_ptr;
+    size_t                      stack_ptr;
 };
 
 
-size_t searchEntry(struct program *, const union identifier, const enum entrytype);
-size_t addEntry(struct program *, const union identifier, const enum entrytype);
-size_t searchOrAddEntry(struct program *, const union identifier, const enum entrytype);
-void addMissing(struct program *, const int);
-bool checkIdentifier(char []);
-bool checkInteger(char []);
-void initProgram(struct program *);
+size_t search_entry(struct Program *, const union Identifier, const enum EntryType);
+size_t add_entry(struct Program *, const union Identifier, const enum EntryType);
+size_t search_or_add_entry(struct Program *, const union Identifier, const enum EntryType);
+void remember_missing_reference(struct Program *, const int);
+bool check_identifier(char []);
+bool check_integer(char []);
+void init_program(struct Program *);
 void strip(char [], char []);
-void parseLine(struct program *, char [], const int);
-void parseInput(struct program *, char [], const int);
-void parsePrint(struct program *, char [], const int);
-void parseGoto(struct program *, char [], const int);
-void parseLet(struct program *, char [], const int);
-void parseIf(struct program *, char [], const int);
+void parse_line(struct Program *, char [], const int);
+void parse_input(struct Program *, char [], const int);
+void parse_print(struct Program *, char [], const int);
+void parse_goto(struct Program *, char [], const int);
+void parse_let(struct Program *, char [], const int);
+void parse_if(struct Program *, char [], const int);
 
 
 #define TOKEN_SIZE  20
 
-enum tokenType {
-    IDENTIFIER='i', OPERATION='o', BRACE='b'
-};
+bool check_expression(const char []);
+bool evaluate_expression(char [], struct Program *);
 
-struct exprToken {
-    char token[TOKEN_SIZE];
-    char token_type;
-    struct exprToken *next;
-};
-
-bool checkExpression(const char []);
-bool evalExpression(char [], struct program *);
-
-enum comparison {GE, GT, LE, LT, EQ, NE};
+enum Comparison {GE, GT, LE, LT, EQ, NE};

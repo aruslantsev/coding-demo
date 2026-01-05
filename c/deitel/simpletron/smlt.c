@@ -21,13 +21,13 @@ int main(const int argc, char *argv[]) {
         exit(1);
     }
 
-    struct program program;
+    struct Program program;
     char buffer[BUFFER_SIZE];
     int line_number = 0;
-    union identifier identifier;
+    union Identifier identifier;
     size_t address;
 
-    initProgram(&program);
+    init_program(&program);
 
     while (!feof(program_file)) {
         if (fgets(buffer, BUFFER_SIZE, program_file) != NULL) {
@@ -39,7 +39,7 @@ int main(const int argc, char *argv[]) {
             printf("%s\n", buffer);
             /* Skip empty string */
             if (strlen(buffer) == 0) continue;
-            parseLine(&program, buffer, line_number);
+            parse_line(&program, buffer, line_number);
         }
     }
 
@@ -47,11 +47,11 @@ int main(const int argc, char *argv[]) {
 #ifdef DEBUG
     puts("Resolving remaining references");
 #endif
-    const struct missingEntry *missingPtr = program.missingList;
+    const struct MissingRefListEntry *missingPtr = program.MissingRefList;
     while (missingPtr != NULL) {
 
         identifier.value = missingPtr->label;
-        address = searchEntry(&program, identifier, LINE);
+        address = search_entry(&program, identifier, LINE);
         if (address == -1) {
             printf("Unresolved label %d\n", missingPtr->label);
             exit(1);

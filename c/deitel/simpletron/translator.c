@@ -1,3 +1,4 @@
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -5,7 +6,6 @@
 #include "translator.h"
 #include "evaluate.h"
 
-#include <ctype.h>
 
 #define DEBUG_LT
 #define DEBUG_MT
@@ -15,10 +15,10 @@
 // #undef DEBUG_MT
 
 
-size_t searchEntry(
-    struct program *program,
-    const union identifier identifier,
-    const enum entrytype type
+size_t search_entry(
+    struct Program *program,
+    const union Identifier identifier,
+    const enum EntryType type
 ) {
 #ifdef DEBUG_LT
     printf("Searching for %c", type);
@@ -28,27 +28,27 @@ size_t searchEntry(
         printf(" %d\n", identifier.value);
     }
 #endif
-    struct listEntry *lookupListPtr = program->lookupList;
-    while (lookupListPtr != NULL) {
+    struct LookupListEntry *lookup_list_pointer = program->lookup_list;
+    while (lookup_list_pointer != NULL) {
 #ifdef DEBUG_LT
-        printf("Scanning object: %c", lookupListPtr->type);
-        if (lookupListPtr->type == VAR) {
-            printf(" %s", lookupListPtr->identifier.name);
+        printf("Scanning object: %c", lookup_list_pointer->type);
+        if (lookup_list_pointer->type == VAR) {
+            printf(" %s", lookup_list_pointer->identifier.name);
         } else {
-            printf(" %d", lookupListPtr->identifier.value);
+            printf(" %d", lookup_list_pointer->identifier.value);
         }
-        printf(", address %ld\n", lookupListPtr->address);
+        printf(", address %ld\n", lookup_list_pointer->address);
 #endif
         if (
-            (type == VAR && type == lookupListPtr->type && strcmp(lookupListPtr->identifier.name, identifier.name) == 0)
-            || ((type == CONST || type == LINE)  && type == lookupListPtr->type && lookupListPtr->identifier.value == identifier.value)
+            (type == VAR && type == lookup_list_pointer->type && strcmp(lookup_list_pointer->identifier.name, identifier.name) == 0)
+            || ((type == CONST || type == LINE)  && type == lookup_list_pointer->type && lookup_list_pointer->identifier.value == identifier.value)
         ) {
 #ifdef DEBUG_LT
-            printf("Found, address: %ld\n", lookupListPtr->address);
+            printf("Found, address: %ld\n", lookup_list_pointer->address);
 #endif
-            return lookupListPtr->address;
+            return lookup_list_pointer->address;
         }
-        lookupListPtr = lookupListPtr->next;
+        lookup_list_pointer = lookup_list_pointer->next;
     }
 #ifdef DEBUG_LT
     puts("Not found");
@@ -57,10 +57,10 @@ size_t searchEntry(
 }
 
 
-size_t addEntry(
-    struct program *program,
-    const union identifier identifier,
-    const enum entrytype type
+size_t add_entry(
+    struct Program *program,
+    const union Identifier identifier,
+    const enum EntryType type
 ) {
 #ifdef DEBUG_LT
     printf("Adding %c", type);
@@ -70,55 +70,55 @@ size_t addEntry(
         printf(" %d\n", identifier.value);
     }
 #endif
-    struct listEntry *newEntry = (struct listEntry *) malloc(sizeof(struct listEntry));
-    if (newEntry == NULL) {
+    struct LookupListEntry *new_entry = (struct LookupListEntry *) malloc(sizeof(struct LookupListEntry));
+    if (new_entry == NULL) {
         puts("Error. Can't allocate memory");
         exit(1);
     }
-    newEntry->identifier = identifier;
-    newEntry->type = type;
-    if (newEntry->type == LINE) {
-        newEntry->address = program->instructionPtr;
+    new_entry->identifier = identifier;
+    new_entry->type = type;
+    if (new_entry->type == LINE) {
+        new_entry->address = program->instruction_ptr;
     } else {
-        newEntry->address = program->variablePtr;
+        new_entry->address = program->stack_ptr;
         if (type == CONST) {
-            program->memory[program->variablePtr] = identifier.value;
+            program->memory[program->stack_ptr] = identifier.value;
 #ifdef DEBUG_LT
             printf(
                 "Writing constant value %d (%0X) at %ld\n", 
-                identifier.value, (word_t) identifier.value, program->variablePtr
+                identifier.value, (word_t) identifier.value, program->stack_ptr
             );
 #endif
         }
-        program->variablePtr--;
+        program->stack_ptr--;
     }
-    newEntry->next = NULL;
-    if (program->lookupList == NULL) {
-        program->lookupList = newEntry;
+    new_entry->next = NULL;
+    if (program->lookup_list == NULL) {
+        program->lookup_list = new_entry;
     } else {
-        struct listEntry *lookupListPtr = program->lookupList;
-        while (lookupListPtr->next != NULL) {
-            lookupListPtr = lookupListPtr->next;
+        struct LookupListEntry *lookup_list_ptr = program->lookup_list;
+        while (lookup_list_ptr->next != NULL) {
+            lookup_list_ptr = lookup_list_ptr->next;
         }
-        lookupListPtr->next = newEntry;
+        lookup_list_ptr->next = new_entry;
     }
 #ifdef DEBUG_LT
-    printf("Added object: %c", newEntry->type);
-    if (newEntry->type == VAR) {
-        printf(" %s", newEntry->identifier.name);
+    printf("Added object: %c", new_entry->type);
+    if (new_entry->type == VAR) {
+        printf(" %s", new_entry->identifier.name);
     } else {
-        printf(" %d", newEntry->identifier.value);
+        printf(" %d", new_entry->identifier.value);
     }
-    printf(", address %ld\n", newEntry->address);
+    printf(", address %ld\n", new_entry->address);
 #endif
-    return newEntry->address;
+    return new_entry->address;
 }
 
 
-size_t searchOrAddEntry(
-    struct program *program,
-    const union identifier identifier,
-    const enum entrytype type
+size_t search_or_add_entry(
+    struct Program *program,
+    const union Identifier identifier,
+    const enum EntryType type
 ) {
 #ifdef DEBUG_LT
     printf("Searching and adding %c", type);
@@ -128,34 +128,34 @@ size_t searchOrAddEntry(
         printf(" %d\n", identifier.value);
     }
 #endif
-    const size_t address = searchEntry(program, identifier, type);
+    const size_t address = search_entry(program, identifier, type);
     if (address != -1) {
         return address;
     }
-    return addEntry(program, identifier, type);
+    return add_entry(program, identifier, type);
 }
 
 
-void addMissing(struct program *program, const int identifier) {
+void remember_missing_reference(struct Program *program, const int identifier) {
 #ifdef DEBUG_MT
-    printf("Adding missing reference to row number %d for address %ld\n", identifier, program->instructionPtr);
+    printf("Adding missing reference to row number %d for address %ld\n", identifier, program->instruction_ptr);
 #endif
-    struct missingEntry *entry = (struct missingEntry *) malloc(sizeof(struct missingEntry)), *missingPtr;
-    *entry = (struct missingEntry) {.label=identifier, .address=program->instructionPtr, .next=NULL};
-    if (program->missingList == NULL) {
-        program->missingList = entry;
+    struct MissingRefListEntry *entry = (struct MissingRefListEntry *) malloc(sizeof(struct MissingRefListEntry)), *missing_ref_list_ptr;
+    *entry = (struct MissingRefListEntry) {.label=identifier, .address=program->instruction_ptr, .next=NULL};
+    if (program->MissingRefList == NULL) {
+        program->MissingRefList = entry;
     } else {
-        missingPtr = program->missingList;
-        while (missingPtr->next != NULL) {
+        missing_ref_list_ptr = program->MissingRefList;
+        while (missing_ref_list_ptr->next != NULL) {
 #ifdef DEBUG_MT
             printf(
                 "Found record for missing reference to row %d at address %ld\n",
-                missingPtr->label, missingPtr->address
+                missing_ref_list_ptr->label, missing_ref_list_ptr->address
             );
 #endif
-            missingPtr = missingPtr->next;
+            missing_ref_list_ptr = missing_ref_list_ptr->next;
         }
-        missingPtr->next = entry;
+        missing_ref_list_ptr->next = entry;
 #ifdef DEBUG_MT
         puts("Done.");
 #endif
@@ -163,18 +163,18 @@ void addMissing(struct program *program, const int identifier) {
 }
 
 
-void initProgram(struct program *program) {
-    program->lookupList = NULL;
-    program->missingList = NULL;
+void init_program(struct Program *program) {
+    program->lookup_list = NULL;
+    program->MissingRefList = NULL;
     for (size_t ptr = 0; ptr < MEMORY_SIZE; ptr++) {
         program->memory[ptr] = 0;
     }
-    program->instructionPtr = 0;
-    program->variablePtr = MEMORY_SIZE - 1;
+    program->instruction_ptr = 0;
+    program->stack_ptr = MEMORY_SIZE - 1;
 }
 
 
-bool checkIdentifier(char identifier[]) {
+bool check_identifier(char identifier[]) {
     if (strlen(identifier) == 0) return false;
     if (!isalpha(identifier[0]) && identifier[0] != '_') return false;
     for (char *ptr = identifier; *ptr != '\0'; ptr++) {
@@ -186,14 +186,14 @@ bool checkIdentifier(char identifier[]) {
 }
 
 
-bool checkInteger(char value[]) {
+bool check_integer(char value[]) {
     if (strlen(value) == 0) return false;
     const char *ptr = value;
     bool has_digits = false;
     if (*ptr == '-' || *ptr == '+') ptr++;
     for (; *ptr != '\0'; ptr++) {
         if (!isdigit(*ptr)) return false;
-        else has_digits = true;
+        has_digits = true;
     }
     return has_digits;
 }
@@ -224,14 +224,14 @@ void strip(char s1[], char s2[]) {
 }
 
 
-void parseLine(struct program *program, char line[], const int lineNumber) {
+void parse_line(struct Program *program, char line[], const int lineNumber) {
     char buffer[BUFFER_SIZE];
-    union identifier identifier;
+    union Identifier identifier;
     strcpy(buffer, line);
 
     /* First token: line number */
     char *token = strtok(buffer, " ");
-    if (!checkInteger(token)) {
+    if (!check_integer(token)) {
         printf("Wrong line number in line %d\n", lineNumber);
         printf("%s\n", line);
     }
@@ -242,12 +242,12 @@ void parseLine(struct program *program, char line[], const int lineNumber) {
         exit(1);
     }
 
-    if (searchEntry(program, identifier, LINE) != -1) {
+    if (search_entry(program, identifier, LINE) != -1) {
         printf("Error: duplicated line number '%d' in line %d\n", identifier.value, lineNumber);
         printf("%s\n", line);
         exit(1);
     }
-    const size_t address = addEntry(program, identifier, LINE);
+    const size_t address = add_entry(program, identifier, LINE);
 #ifdef DEBUG
     printf("Added entry for line %d in table, address %ld\n", identifier.value, address);
 #endif
@@ -256,14 +256,14 @@ void parseLine(struct program *program, char line[], const int lineNumber) {
     token = strtok(NULL, " ");
     if (token == NULL) return;  // Empty line
     if (strcmp("rem", token) == 0) return;  // Skip comments
-    if (strcmp("input", token) == 0) parseInput(program, line, lineNumber);
-    else if (strcmp("print", token) == 0) parsePrint(program, line, lineNumber);
-    else if (strcmp("let", token) == 0) parseLet(program, line, lineNumber);
-    else if (strcmp("goto", token) == 0) parseGoto(program, line, lineNumber);
-    else if (strcmp("if", token) == 0) parseIf(program, line, lineNumber);
+    if (strcmp("input", token) == 0) parse_input(program, line, lineNumber);
+    else if (strcmp("print", token) == 0) parse_print(program, line, lineNumber);
+    else if (strcmp("let", token) == 0) parse_let(program, line, lineNumber);
+    else if (strcmp("goto", token) == 0) parse_goto(program, line, lineNumber);
+    else if (strcmp("if", token) == 0) parse_if(program, line, lineNumber);
     else if (strcmp("end", token) == 0) {
         const word_t instruction = HALT << OPERAND_BITS;
-        program->memory[program->instructionPtr++] = instruction;
+        program->memory[program->instruction_ptr++] = instruction;
     } else {
         printf("Wrong token '%s' in line %d\n", token, lineNumber);
         printf("%s\n", line);
@@ -272,10 +272,10 @@ void parseLine(struct program *program, char line[], const int lineNumber) {
 }
 
 
-void parseInput(struct program *program, char line[], const int lineNumber) {
+void parse_input(struct Program *program, char line[], const int lineNumber) {
     word_t instruction;
     char buffer[BUFFER_SIZE];
-    union identifier identifier;
+    union Identifier identifier;
     size_t address;
 
     strcpy(buffer, line);
@@ -288,7 +288,7 @@ void parseInput(struct program *program, char line[], const int lineNumber) {
         exit(1);
     }
     while (token != NULL) {
-        if (!checkIdentifier(token)) {
+        if (!check_identifier(token)) {
             printf("Wrong variable name %s in line %d", token, lineNumber);
             printf("%s\n", line);
             exit(1);
@@ -297,23 +297,23 @@ void parseInput(struct program *program, char line[], const int lineNumber) {
 #ifdef DEBUG
         printf("Adding variable %s\n", identifier.name);
 #endif
-        address = searchOrAddEntry(program, identifier, VAR);
+        address = search_or_add_entry(program, identifier, VAR);
         if (address == -1) {
             printf("Unknown error in line %d\n", lineNumber);
             printf("%s\n", line);
             exit(1);
         }
         instruction = READ << OPERAND_BITS | address;
-        program->memory[program->instructionPtr++] = instruction;
+        program->memory[program->instruction_ptr++] = instruction;
         token = strtok(NULL, " ,");
     }
 }
 
 
-void parsePrint(struct program *program, char line[], const int lineNumber) {
+void parse_print(struct Program *program, char line[], const int lineNumber) {
     word_t instruction;
     char buffer[BUFFER_SIZE];
-    union identifier identifier;
+    union Identifier identifier;
     size_t address;
 
     strcpy(buffer, line);
@@ -326,7 +326,7 @@ void parsePrint(struct program *program, char line[], const int lineNumber) {
         exit(1);
     }
     while (token != NULL) {
-        if (!checkIdentifier(token)) {
+        if (!check_identifier(token)) {
             printf("Wrong variable name %s in line %d", token, lineNumber);
             printf("%s\n", line);
             exit(1);
@@ -335,23 +335,23 @@ void parsePrint(struct program *program, char line[], const int lineNumber) {
 #ifdef DEBUG
         printf("Adding variable %s\n", identifier.name);
 #endif
-        address = searchOrAddEntry(program, identifier, VAR);
+        address = search_or_add_entry(program, identifier, VAR);
         if (address == -1) {
             printf("Unknown error in line %d\n", lineNumber);
             printf("%s\n", line);
             exit(1);
         }
         instruction = WRITE << OPERAND_BITS | address;
-        program->memory[program->instructionPtr++] = instruction;
+        program->memory[program->instruction_ptr++] = instruction;
         token = strtok(NULL, " ,");
     }
 }
 
 
-void parseGoto(struct program *program, char line[], const int lineNumber) {
+void parse_goto(struct Program *program, char line[], const int lineNumber) {
     word_t instruction;
     char buffer[BUFFER_SIZE];
-    union identifier identifier;
+    union Identifier identifier;
     size_t address;
 
     strcpy(buffer, line);
@@ -363,7 +363,7 @@ void parseGoto(struct program *program, char line[], const int lineNumber) {
         printf("%s\n", line);
         exit(1);
     }
-    if (!checkInteger(token)) {
+    if (!check_integer(token)) {
         printf("Bad line number in line %d\n", lineNumber);
         printf("%s\n", line);
         exit(1);
@@ -381,21 +381,21 @@ void parseGoto(struct program *program, char line[], const int lineNumber) {
         printf("%s\n", line);
         exit(1);
     }
-    if ((address = searchEntry(program, identifier, LINE)) == -1) {
-        addMissing(program, identifier.value);
+    if ((address = search_entry(program, identifier, LINE)) == -1) {
+        remember_missing_reference(program, identifier.value);
         address = 0;
     }
 #ifdef DEBUG
     printf("GOTO line %d\n", identifier.value);
 #endif
     instruction = BRANCH << OPERAND_BITS | address;
-    program->memory[program->instructionPtr++] = instruction;
+    program->memory[program->instruction_ptr++] = instruction;
 }
 
 
-void parseLet(struct program *program, char line[], const int lineNumber) {
+void parse_let(struct Program *program, char line[], const int lineNumber) {
     char buffer[BUFFER_SIZE];
-    union identifier identifier;
+    union Identifier identifier;
 
     strcpy(buffer, line);
     char *bufferStart = buffer;
@@ -403,7 +403,7 @@ void parseLet(struct program *program, char line[], const int lineNumber) {
     strtok(NULL, " ");  // Skip keyword
 
     char *token = strtok(NULL, " =");
-    if (!checkIdentifier(token)) {
+    if (!check_identifier(token)) {
         printf("Wrong variable name %s in line %d", token, lineNumber);
         printf("%s\n", line);
         exit(1);
@@ -417,7 +417,7 @@ void parseLet(struct program *program, char line[], const int lineNumber) {
 #ifdef DEBUG
     printf("Adding variable %s\n", identifier.name);
 #endif
-    size_t left_address = searchOrAddEntry(program, identifier, VAR);
+    size_t left_address = search_or_add_entry(program, identifier, VAR);
     if (left_address == -1) {
         printf("Unknown error in line %d\n", lineNumber);
         printf("%s\n", line);
@@ -446,27 +446,27 @@ void parseLet(struct program *program, char line[], const int lineNumber) {
 #ifdef DEBUG
     printf("Validating '%s'\n", buffer);
 #endif
-    if (!checkExpression(buffer)) {
+    if (!check_expression(buffer)) {
         printf("Invalid expression '%s' on line %d\n", buffer, lineNumber);
         printf("%s\n", line);
         exit(1);
     }
     
-    if (!evalExpression(buffer, program)) {
+    if (!evaluate_expression(buffer, program)) {
         printf("Invalid expression '%s' in line %d\n", buffer, lineNumber);
         printf("%s\n", line);
         exit(1);
     }
     word_t instruction = STORE << OPERAND_BITS | left_address;
-    program->memory[program->instructionPtr++] = instruction;
+    program->memory[program->instruction_ptr++] = instruction;
 
 }
 
 
-void parseIf(struct program *program, char line[], const int lineNumber) {
+void parse_if(struct Program *program, char line[], const int lineNumber) {
     word_t instruction;
     char buffer[BUFFER_SIZE];
-    union identifier identifier;
+    union Identifier identifier;
     size_t address;
 
     strcpy(buffer, line);
@@ -495,7 +495,7 @@ void parseIf(struct program *program, char line[], const int lineNumber) {
         printf("%s\n", line);
         exit(1);
     }
-    if (!checkInteger(token)) {
+    if (!check_integer(token)) {
         printf("Bad line number in line %d\n", lineNumber);
         printf("%s\n", line);
     }
@@ -506,7 +506,7 @@ void parseIf(struct program *program, char line[], const int lineNumber) {
         exit(1);
     }
     bool add_missing = false;
-    if ((address = searchEntry(program, identifier, LINE)) == -1) {
+    if ((address = search_entry(program, identifier, LINE)) == -1) {
         add_missing = true;
         address = 0;
     }
@@ -522,7 +522,7 @@ void parseIf(struct program *program, char line[], const int lineNumber) {
 
     char leftExpr[BUFFER_SIZE], rightExpr[BUFFER_SIZE], transformed[BUFFER_SIZE];
     char *conditionPosition;
-    enum comparison comparison;
+    enum Comparison comparison;
 
     if ((conditionPosition = strstr(expr, "<=")) != NULL) {
         comparison = LE;
@@ -562,13 +562,13 @@ void parseIf(struct program *program, char line[], const int lineNumber) {
     }
 
     printf("%s\n", transformed);
-    if (!checkExpression(transformed)) {
+    if (!check_expression(transformed)) {
         printf("Invalid expression '%s' on line %d\n", buffer, lineNumber);
         printf("%s\n", line);
         exit(1);
     }
     
-    if (!evalExpression(transformed, program)) {
+    if (!evaluate_expression(transformed, program)) {
         printf("Invalid expression '%s' in line %d\n", buffer, lineNumber);
         printf("%s\n", line);
         exit(1);
@@ -577,31 +577,31 @@ void parseIf(struct program *program, char line[], const int lineNumber) {
     switch (comparison) {
         case LE:
         case GE:
-            if (add_missing) addMissing(program, identifier.value);
+            if (add_missing) remember_missing_reference(program, identifier.value);
             instruction = BRANCHNEG << OPERAND_BITS | address;
-            program->memory[program->instructionPtr++] = instruction;
-            if (add_missing) addMissing(program, identifier.value);
+            program->memory[program->instruction_ptr++] = instruction;
+            if (add_missing) remember_missing_reference(program, identifier.value);
             instruction = BRANCHZERO << OPERAND_BITS | address;
-            program->memory[program->instructionPtr++] = instruction;
+            program->memory[program->instruction_ptr++] = instruction;
             break;
         case LT:
         case GT:
-            if (add_missing) addMissing(program, identifier.value);
+            if (add_missing) remember_missing_reference(program, identifier.value);
             instruction = BRANCHNEG << OPERAND_BITS | address;
-            program->memory[program->instructionPtr++] = instruction;
+            program->memory[program->instruction_ptr++] = instruction;
             break;
         case EQ:
-            if (add_missing) addMissing(program, identifier.value);
+            if (add_missing) remember_missing_reference(program, identifier.value);
             instruction = BRANCHZERO << OPERAND_BITS | address;
-            program->memory[program->instructionPtr++] = instruction;
+            program->memory[program->instruction_ptr++] = instruction;
             break;
         case NE:
-            size_t fakeaddr = program->instructionPtr + 2;
+            size_t fakeaddr = program->instruction_ptr + 2;
             instruction = BRANCHZERO << OPERAND_BITS | fakeaddr;
-            program->memory[program->instructionPtr++] = instruction;
-            if (add_missing) addMissing(program, identifier.value);
+            program->memory[program->instruction_ptr++] = instruction;
+            if (add_missing) remember_missing_reference(program, identifier.value);
             instruction = BRANCH << OPERAND_BITS | address ;
-            program->memory[program->instructionPtr++] = instruction;
+            program->memory[program->instruction_ptr++] = instruction;
             break;
         default:
             break;
@@ -609,20 +609,20 @@ void parseIf(struct program *program, char line[], const int lineNumber) {
 }
 
 
-bool evalExpression(char buffer[], struct program *program) {
+bool evaluate_expression(char buffer[], struct Program *program) {
     /* Evaluates expression and places result into accumulator */
     word_t instruction;
     /* Tokenizing */
 #ifdef DEBUG
     puts("Tokenizing expression and converting to postfix notation...");
 #endif
-    struct exprToken *expr_start = tokenizeExpression(buffer);
+    struct ExpressionToken *expr_start = tokenize_expression(buffer);
     if (expr_start == NULL) {
         printf("Invalid expressoin '%s'\n", buffer);
         return false;
     }
 
-    struct exprToken *current_token = expr_start;
+    struct ExpressionToken *current_token = expr_start;
 #ifdef DEBUG
     puts("Generating code...");
     puts("First pass. Allocating memory for variables and constants");
@@ -632,13 +632,13 @@ bool evalExpression(char buffer[], struct program *program) {
         printf("Token %s %c\n", current_token->token, current_token->token_type);
 #endif
         if (current_token->token_type == IDENTIFIER) {
-            union identifier identifier;
-            if (checkInteger(current_token->token)) {
+            union Identifier identifier;
+            if (check_integer(current_token->token)) {
                 identifier.value = atoi(current_token->token);
-                searchOrAddEntry(program, identifier, CONST);
-            } else if (checkIdentifier(current_token->token)) {
+                search_or_add_entry(program, identifier, CONST);
+            } else if (check_identifier(current_token->token)) {
                 strcpy(identifier.name, current_token->token);
-                searchOrAddEntry(program, identifier, VAR);
+                search_or_add_entry(program, identifier, VAR);
             } else {
                 printf("%s is not a valid identifiers\n", current_token->token);
                 return false;
@@ -651,7 +651,7 @@ bool evalExpression(char buffer[], struct program *program) {
     puts("Second pass. Generating code");
 #endif
     /* Generate code */
-    word_t currentStackPointer = program->variablePtr;
+    word_t currentStackPointer = program->stack_ptr;
     current_token = expr_start;
     
     size_t address;
@@ -659,28 +659,28 @@ bool evalExpression(char buffer[], struct program *program) {
         printf("Token %s\n", current_token->token);
         if (current_token->token_type == IDENTIFIER) {
             // Load to stack
-            union identifier identifier;
-            if (checkInteger(current_token->token)) {
+            union Identifier identifier;
+            if (check_integer(current_token->token)) {
                 identifier.value = atoi(current_token->token);
-                address = searchEntry(program, identifier, CONST);
-            } else if (checkIdentifier(current_token->token)) {
+                address = search_entry(program, identifier, CONST);
+            } else if (check_identifier(current_token->token)) {
                 strcpy(identifier.name, current_token->token);
-                address = searchEntry(program, identifier, VAR);
+                address = search_entry(program, identifier, VAR);
             } else {
                 printf("%s is not a valid identifier\n", current_token->token);
                 return false;
             }
             instruction = LOAD << OPERAND_BITS | address;
             printf("FROM MEM %X\n", (word_t) instruction);
-            program->memory[program->instructionPtr++] = instruction;
-            address = program->variablePtr--;
+            program->memory[program->instruction_ptr++] = instruction;
+            address = program->stack_ptr--;
             instruction = STORE << OPERAND_BITS | address;
             printf("TO STACK %X\n", (word_t) instruction);
-            program->memory[program->instructionPtr++] = instruction;
+            program->memory[program->instruction_ptr++] = instruction;
         } else if (current_token->token_type == OPERATION) {
-            instruction = LOAD << OPERAND_BITS | ++(program->variablePtr);
+            instruction = LOAD << OPERAND_BITS | ++(program->stack_ptr);
             printf("FROM STACK %X\n", (word_t) instruction);
-            program->memory[program->instructionPtr++] = instruction;
+            program->memory[program->instruction_ptr++] = instruction;
             switch (current_token->token[0]) {
                 case '+':
                     instruction = ADD;
@@ -701,12 +701,12 @@ bool evalExpression(char buffer[], struct program *program) {
                     printf("Unknown operation '%c'\n", current_token->token[0]);
                     return false;
             }
-            instruction = instruction << OPERAND_BITS | ++(program->variablePtr);
+            instruction = instruction << OPERAND_BITS | ++(program->stack_ptr);
             printf("ARITH_OP %X\n", (word_t) instruction);
-            program->memory[program->instructionPtr++] = instruction;
-            instruction = STORE << OPERAND_BITS | program->variablePtr--;
+            program->memory[program->instruction_ptr++] = instruction;
+            instruction = STORE << OPERAND_BITS | program->stack_ptr--;
             printf("TO STACK %X\n", (word_t) instruction);
-            program->memory[program->instructionPtr++] = instruction;
+            program->memory[program->instruction_ptr++] = instruction;
         } else {
             printf("Wrong token %s\n", current_token->token);
             return false;
@@ -721,10 +721,10 @@ bool evalExpression(char buffer[], struct program *program) {
         current_token = expr_start;
     }
 
-    instruction = LOAD << OPERAND_BITS | ++(program->variablePtr);
-    program->memory[program->instructionPtr++] = instruction;
+    instruction = LOAD << OPERAND_BITS | ++(program->stack_ptr);
+    program->memory[program->instruction_ptr++] = instruction;
 #ifdef DEBUG
-    if (program->variablePtr != currentStackPointer) {
+    if (program->stack_ptr != currentStackPointer) {
         puts("Stack is in dirty state");
     }
 #endif
@@ -732,7 +732,7 @@ bool evalExpression(char buffer[], struct program *program) {
 }
 
 
-bool checkExpression (const char buffer[]) {
+bool check_expression (const char buffer[]) {
     bool notEmpty = false;
     for (const char *c = buffer; *c != '\0'; c++) {
         if (isalnum(*c)) notEmpty = true;
