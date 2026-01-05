@@ -29,7 +29,7 @@ struct MissingRefListEntry {
 
 struct Program {
     struct LookupListEntry      *lookup_list;
-    struct MissingRefListEntry  *MissingRefList;
+    struct MissingRefListEntry  *missing_ref_list;
     word_t                      memory[MEMORY_SIZE];
     size_t                      instruction_ptr;
     size_t                      stack_ptr;
@@ -52,7 +52,6 @@ void parse_let(struct Program *, char [], const int);
 void parse_if(struct Program *, char [], const int);
 
 
-#define TOKEN_SIZE  20
 
 bool check_expression(const char []);
 bool evaluate_expression(char [], struct Program *);

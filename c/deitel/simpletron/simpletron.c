@@ -19,9 +19,9 @@ void simpletron_greet(void) {
 
 void soft_reset(struct Simpletron *simpletron) {
     simpletron->accumulator = 0;
-    simpletron->instructionCounter = 0;
-    simpletron->instructionRegister = 0;
-    simpletron->operationCode = 0;
+    simpletron->instruction_counter = 0;
+    simpletron->instruction_register = 0;
+    simpletron->operation_code = 0;
     simpletron->operand = 0;
 }
 
@@ -52,29 +52,29 @@ enum Status user_input(word_t *value) {
 
 
 enum Status execute_operation(struct Simpletron *simpletron) {
-    if (simpletron->instructionCounter < 0 || simpletron->instructionCounter >= MEMORY_SIZE) {
+    if (simpletron->instruction_counter < 0 || simpletron->instruction_counter >= MEMORY_SIZE) {
         printf("*** instructionCounter is not in range 0..%d ***\n", MEMORY_SIZE);
         puts(ERRMSG);
         return FAIL;
     }
 
     /* Decode instruction */
-    simpletron->instructionRegister = simpletron->memory[simpletron->instructionCounter++];
-    if (simpletron->instructionRegister < 0) {
+    simpletron->instruction_register = simpletron->memory[simpletron->instruction_counter++];
+    if (simpletron->instruction_register < 0) {
         printf(
                 "*** Invalid instruction %d at %d ***\n",
-                simpletron->instructionRegister, simpletron->instructionCounter - 1
+                simpletron->instruction_register, simpletron->instruction_counter - 1
             );
         return FAIL;
     }
-    simpletron->operationCode = (uword_t) simpletron->instructionRegister >> OPERAND_BITS;
-    simpletron->operand = (uword_t) simpletron->instructionRegister & ((1 << OPERAND_BITS) - 1);
+    simpletron->operation_code = (uword_t) simpletron->instruction_register >> OPERAND_BITS;
+    simpletron->operand = (uword_t) simpletron->instruction_register & ((1 << OPERAND_BITS) - 1);
 
     /* Execute instruction */
     size_t memptr = simpletron->operand;
     int strchar;
 
-    switch (simpletron->operationCode) {
+    switch (simpletron->operation_code) {
         case NOP:
             break;
         case READ:
@@ -116,7 +116,7 @@ enum Status execute_operation(struct Simpletron *simpletron) {
             if (simpletron->accumulator != 0) {
                 simpletron->accumulator = simpletron->memory[simpletron->operand] / simpletron->accumulator;
             } else {
-                printf("*** Attempt to divide by zero at %d ***\n", simpletron->instructionCounter - 1);
+                printf("*** Attempt to divide by zero at %d ***\n", simpletron->instruction_counter - 1);
                 puts(ERRMSG);
                 return FAIL;
             }
@@ -128,22 +128,22 @@ enum Status execute_operation(struct Simpletron *simpletron) {
             if (simpletron->accumulator != 0) {
                 simpletron->accumulator = simpletron->memory[simpletron->operand] % simpletron->accumulator;
             } else {
-                printf("*** Attempt to divide by zero at %d ***\n", simpletron->instructionCounter - 1);
+                printf("*** Attempt to divide by zero at %d ***\n", simpletron->instruction_counter - 1);
                 puts(ERRMSG);
                 return FAIL;
             }
             break;
         case BRANCH:
-            simpletron->instructionCounter = simpletron->operand;
+            simpletron->instruction_counter = simpletron->operand;
             break;
         case BRANCHNEG:
             if (simpletron->accumulator < 0) {
-                simpletron->instructionCounter = simpletron->operand;
+                simpletron->instruction_counter = simpletron->operand;
             }
             break;
         case BRANCHZERO:
             if (simpletron->accumulator == 0) {
-                simpletron->instructionCounter = simpletron->operand;
+                simpletron->instruction_counter = simpletron->operand;
             }
             break;
         case HALT:
@@ -152,7 +152,7 @@ enum Status execute_operation(struct Simpletron *simpletron) {
         default:
             printf(
                 "*** Invalid instruction %X at %X ***\n",
-                simpletron->instructionRegister, simpletron->instructionCounter - 1
+                simpletron->instruction_register, simpletron->instruction_counter - 1
             );
             puts(ERRMSG);
             return FAIL;
@@ -170,9 +170,9 @@ enum Status execute_operation(struct Simpletron *simpletron) {
 
 void print_state(const struct Simpletron *simpletron) {
     printf("accumulator:\t\t%0*X\n", WORD_BITS / 4, (uword_t) simpletron->accumulator);
-    printf("instructionCounter:\t%*X\n", WORD_BITS / 4, (uword_t) simpletron->instructionCounter);
-    printf("instructionRegister:\t%0*X\n", WORD_BITS / 4, (uword_t) simpletron->instructionRegister);
-    printf("operationCode:\t\t%*X\n", WORD_BITS / 4, (uword_t) simpletron->operationCode);
+    printf("instructionCounter:\t%*X\n", WORD_BITS / 4, (uword_t) simpletron->instruction_counter);
+    printf("instructionRegister:\t%0*X\n", WORD_BITS / 4, (uword_t) simpletron->instruction_register);
+    printf("operationCode:\t\t%*X\n", WORD_BITS / 4, (uword_t) simpletron->operation_code);
     printf("operand:\t\t%*X\n", WORD_BITS / 4, (uword_t) simpletron->operand);
     puts("\nMEMORY:");
     printf("%*s", MEM_ADDR_WIDTH, "");
@@ -199,12 +199,12 @@ void input_sml(struct Simpletron *simpletron) {
     reset(simpletron);
     simpletron_greet();
     do {
-        printf("%0*x ? ", OPERAND_BITS / 4, simpletron->instructionCounter);
+        printf("%0*x ? ", OPERAND_BITS / 4, simpletron->instruction_counter);
         fgets(s, USER_INPUT_LENGTH, stdin);
         input = strtol(s, NULL, 16);
 
         if (check_value(input)) {
-            simpletron->memory[simpletron->instructionCounter++] = (word_t) input;
+            simpletron->memory[simpletron->instruction_counter++] = (word_t) input;
         } else if (input != STOP_VALUE) {
             puts("Invalid input");
         }
@@ -231,7 +231,7 @@ void read_file_sml(struct Simpletron *simpletron, const char *filename) {
     if (header == HEADER) { // binary file
         puts("Got binary Simpletron memory state");
         while (!feof(file)) {
-            result = fread(&simpletron->memory[simpletron->instructionCounter++], sizeof(word_t), 1, file);
+            result = fread(&simpletron->memory[simpletron->instruction_counter++], sizeof(word_t), 1, file);
             if (result == 0 && !feof(file)) puts("Error reading file");
         }
     } else {
@@ -244,7 +244,7 @@ void read_file_sml(struct Simpletron *simpletron, const char *filename) {
             if (fgets(s, USER_INPUT_LENGTH, file) != NULL) {
                 input = strtol(s, NULL, 16);
                 if (check_value(input)) {
-                    simpletron->memory[simpletron->instructionCounter++] = (word_t) input;
+                    simpletron->memory[simpletron->instruction_counter++] = (word_t) input;
                 } else printf("Invalid input: %s\n", s);
             }
         }

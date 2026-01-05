@@ -59,9 +59,9 @@ typedef int64_t dword_t;
 
 struct Simpletron {
     word_t memory[MEMORY_SIZE];    /* memory array */
-    word_t instructionCounter;     /* current location in memory */
-    word_t instructionRegister;    /* current instruction from memory */
-    word_t operationCode;          /* current decoded operation */
+    word_t instruction_counter;     /* current location in memory */
+    word_t instruction_register;    /* current instruction from memory */
+    word_t operation_code;          /* current decoded operation */
     word_t operand;                /* current decoded operand */
     word_t accumulator;            /* accumulator register */
 };

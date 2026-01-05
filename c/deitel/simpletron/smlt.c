@@ -17,7 +17,7 @@ int main(const int argc, char *argv[]) {
 
     FILE *program_file = fopen(argv[1], "r");
     if (program_file == NULL) {
-        puts("Error opening file");
+        puts("Error opening input file");
         exit(1);
     }
 
@@ -47,23 +47,22 @@ int main(const int argc, char *argv[]) {
 #ifdef DEBUG
     puts("Resolving remaining references");
 #endif
-    const struct MissingRefListEntry *missingPtr = program.MissingRefList;
-    while (missingPtr != NULL) {
-
-        identifier.value = missingPtr->label;
+    const struct MissingRefListEntry *missing_ref_ptr = program.missing_ref_list;
+    while (missing_ref_ptr != NULL) {
+        identifier.value = missing_ref_ptr->label;
         address = search_entry(&program, identifier, LINE);
         if (address == -1) {
-            printf("Unresolved label %d\n", missingPtr->label);
+            printf("Unresolved label %d\n", missing_ref_ptr->label);
             exit(1);
         }
 #ifdef DEBUG
         printf(
             "Instruction at address %0X references line %d. Real address: %ld\n",
-            (word_t) missingPtr->address, missingPtr->label, address
+            (word_t) missing_ref_ptr->address, missing_ref_ptr->label, address
         );
 #endif
-        program.memory[missingPtr->address] |= address;
-        missingPtr = missingPtr->next;
+        program.memory[missing_ref_ptr->address] |= address;
+        missing_ref_ptr = missing_ref_ptr->next;
     }
     fclose(program_file);
 
