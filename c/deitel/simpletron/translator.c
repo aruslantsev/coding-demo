@@ -36,7 +36,10 @@ size_t search_entry(
         } else {
             printf(" %d", lookup_list_pointer->identifier.value);
         }
-        printf(", address %ld\n", lookup_list_pointer->address);
+        printf(
+            ", address %ld (%0X)\n",
+            lookup_list_pointer->address, (uword_t) lookup_list_pointer->address
+        );
 #endif
         if (
             (
@@ -51,7 +54,10 @@ size_t search_entry(
             )
         ) {
 #ifdef DEBUG_LOOKUP_LIST
-            printf("Found, address: %ld\n", lookup_list_pointer->address);
+            printf(
+                "Found, address: %ld (%0X)\n",
+                lookup_list_pointer->address, (uword_t) lookup_list_pointer->address
+            );
 #endif
             return lookup_list_pointer->address;
         }
@@ -89,17 +95,18 @@ size_t add_entry(
     if (new_entry->type == LINE) {
         new_entry->address = program->instruction_ptr;
     } else {
-        new_entry->address = program->stack_ptr;
+        new_entry->address = program->constants_ptr;
         if (type == CONST) {
-            program->memory[program->stack_ptr] = identifier.value;
+            program->memory[program->constants_ptr] = identifier.value;
 #ifdef DEBUG_LOOKUP_LIST
             printf(
-                "Writing constant value %d (%0X) at %ld\n", 
-                identifier.value, (word_t) identifier.value, program->stack_ptr
+                "Writing constant value %d (%0X) at %ld (%0X)\n",
+                identifier.value, (word_t) identifier.value,
+                program->constants_ptr, (uword_t) program->constants_ptr
             );
 #endif
         }
-        program->stack_ptr--;
+        program->constants_ptr--;
     }
     new_entry->next = NULL;
     if (program->lookup_list == NULL) {
@@ -118,7 +125,9 @@ size_t add_entry(
     } else {
         printf(" %d", new_entry->identifier.value);
     }
-    printf(", address %ld\n", new_entry->address);
+    printf(
+        ", address %ld (%0X)\n", new_entry->address, (uword_t) new_entry->address
+    );
 #endif
     return new_entry->address;
 }
@@ -148,8 +157,8 @@ size_t search_or_add_entry(
 void remember_missing_reference(struct Program *program, const int identifier) {
 #ifdef DEBUG_MISSING_REF_LIST
     printf(
-        "Adding missing reference to row number %d for address %ld\n",
-        identifier, program->instruction_ptr
+        "Adding missing reference to row number %d for address %ld (%0X)\n",
+        identifier, program->instruction_ptr, (uword_t) program->instruction_ptr
     );
 #endif
     struct MissingRefListEntry *entry = (struct MissingRefListEntry *) malloc(
@@ -166,8 +175,10 @@ void remember_missing_reference(struct Program *program, const int identifier) {
         while (missing_ref_list_ptr->next != NULL) {
 #ifdef DEBUG_MISSING_REF_LIST
             printf(
-                "Found record for missing reference to row %d at address %ld\n",
-                missing_ref_list_ptr->label, missing_ref_list_ptr->address
+                "Found record for missing reference to row %d at address %ld (%0X)\n",
+                missing_ref_list_ptr->label,
+                missing_ref_list_ptr->address,
+                (uword_t) missing_ref_list_ptr->address
             );
 #endif
             missing_ref_list_ptr = missing_ref_list_ptr->next;
@@ -187,7 +198,8 @@ void init_program(struct Program *program) {
         program->memory[ptr] = 0;
     }
     program->instruction_ptr = 0;
-    program->stack_ptr = MEMORY_SIZE - 1;
+    program->constants_ptr = MEMORY_SIZE - 1;
+    program->stack_ptr = program->constants_ptr - NUM_CONSTANTS;
 }
 
 
@@ -271,7 +283,10 @@ void parse_line(struct Program *program, char line[], const int line_number) {
     }
     const size_t address = add_entry(program, identifier, LINE);
 #ifdef DEBUG_PARSE
-    printf("Added entry for line %d in table, address %ld\n", identifier.value, address);
+    printf(
+        "Added entry for line %d in table, address %ld (%0X)\n",
+        identifier.value, address, (uword_t) address
+    );
 #endif
 
     /* Second token: rem, let, input, print, goto, if ... goto, end */
@@ -707,7 +722,7 @@ bool evaluate_expression(char buffer[], struct Program *program) {
     puts("Second pass. Generating code");
 #endif
     /* Generate code */
-    word_t currentStackPointer = program->stack_ptr;
+    word_t current_stack_pointer = program->stack_ptr;
     current_token = expr_start;
     
     size_t address;
@@ -793,7 +808,7 @@ bool evaluate_expression(char buffer[], struct Program *program) {
 #ifdef DEBUG_EXPRESSION
     printf("Placing result in accumulator OPCODE %X\n", instruction);
 #endif
-    if (program->stack_ptr != currentStackPointer) {
+    if (program->stack_ptr != current_stack_pointer) {
         puts("Stack is in dirty state");
         return false;
     }

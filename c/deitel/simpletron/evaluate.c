@@ -44,7 +44,6 @@ struct ExpressionToken *tokenize_expression(char expression[]) {
             || is_arithmetic_operation(*c)
             || isblank(*c)
             || *c == '\n'
-            || *c == '\0'
         ) {
             /* Something was read during previous step */
             if (token_idx > 0) {
@@ -54,8 +53,9 @@ struct ExpressionToken *tokenize_expression(char expression[]) {
                     sizeof(struct ExpressionToken)
                 );
                 strcpy(token->token, current_identifier);
+                token->next = NULL;
 #ifdef DEBUG_EVAL
-                printf("Infix notation: adding token %s\n", token->token);
+                printf("Infix notation: adding token '%s'\n", token->token);
 #endif
                 token->token_type = IDENTIFIER;
                 token_idx = 0;
@@ -74,11 +74,14 @@ struct ExpressionToken *tokenize_expression(char expression[]) {
                 );
                 token->token[0] = *c;
                 token->token[1] = '\0';
-                if (is_arithmetic_operation(*c)) token->token_type = OPERATION;
-                else token->token_type = PARENTHESES;
+                if (is_arithmetic_operation(*c)) {
+                    token->token_type = OPERATION;
+                } else {
+                    token->token_type = PARENTHESES;
+                }
                 token->next = NULL;
 #ifdef DEBUG_EVAL
-                printf("Infix notation: adding token %s\n", token->token);
+                printf("Infix notation: adding token '%s'\n", token->token);
 #endif
                 if (start == NULL) {
                     start = token;
@@ -87,6 +90,9 @@ struct ExpressionToken *tokenize_expression(char expression[]) {
                     current_token->next = token;
                     current_token = current_token->next;
                 }
+            } else if (!isblank(*c) && *c != '\n') {
+                printf("Unknown symbol '%c'\n", *c);
+                exit(1);
             }
             c++;
         } else {
@@ -118,12 +124,21 @@ bool transform_and_check_expression(struct ExpressionToken *expression_start) {
 #endif
     int parentheses_count = 0;
     struct ExpressionToken *current_token = expression_start;
+#ifdef DEBUG_EVAL
+    puts("Got infix expression");
+    while (current_token != NULL) {
+        printf("'%s' ", current_token->token);
+        current_token = current_token->next;
+    }
+    puts("");
+    current_token = expression_start;
+#endif
     int token_cnt = 0;
     /* Leading unary operator */
     if (current_token != NULL && current_token->token_type == OPERATION) {
         if (current_token->token[0] == '+' || current_token->token[0] == '-') {
 #ifdef DEBUG_EVAL
-            puts("Unary plus or minus found");
+            puts("Leading unary plus or minus found");
 #endif
             current_token->token_type = IDENTIFIER;
             current_token->token[1] = '1';
@@ -151,16 +166,15 @@ bool transform_and_check_expression(struct ExpressionToken *expression_start) {
             return false;
 
         /* Two identifiers without operation between them */
-        if (current_token->token_type == IDENTIFIER)
+        if (current_token->token_type == IDENTIFIER) {
             if (
-                current_token->next != NULL
-                && current_token->next->token_type == IDENTIFIER
-            ) {
+               current_token->next != NULL
+               && current_token->next->token_type == IDENTIFIER
+           ) {
                 puts("Error: Found two tokens without operation between them.");
                 return false;
-            }
-
-        if (
+           }
+        } else if (
             current_token->token_type == PARENTHESES
             || current_token->token_type == OPERATION
         ) {
@@ -234,6 +248,9 @@ bool transform_and_check_expression(struct ExpressionToken *expression_start) {
                     current_token->next->next = tmp_token;
                 } else return false;
             }
+        } else {
+            puts("Unknown token");
+            return false;
         }
         current_token = current_token->next;
         token_cnt++;
@@ -251,6 +268,7 @@ struct ExpressionToken *to_postfix_notation(struct ExpressionToken *expression_s
     struct ExpressionToken *tmp_token = NULL;
     struct ExpressionToken *operations_stack[MAX_TOKENS];
     size_t stack_ptr = 0;
+    int token_cnt = 0;
 
     while (current_infix_token != NULL) {
 #ifdef DEBUG_EVAL
@@ -258,6 +276,10 @@ struct ExpressionToken *to_postfix_notation(struct ExpressionToken *expression_s
             "Token '%s', type '%c'\n",
             current_infix_token->token, current_infix_token->token_type
         );
+        token_cnt++;
+        if (token_cnt > MAX_TOKENS) {
+            exit(1);
+        }
 #endif
         if (current_infix_token->token_type == IDENTIFIER) {
 #ifdef DEBUG_EVAL
@@ -360,7 +382,7 @@ struct ExpressionToken *to_postfix_notation(struct ExpressionToken *expression_s
         current_postfix_token->next = NULL;
     }
 #ifdef DEBUG_EVAL
-    int token_cnt = 0;
+    token_cnt = 0;
     current_postfix_token = postfix_expression;
     puts("Postfix expression");
     while (current_postfix_token != NULL) {

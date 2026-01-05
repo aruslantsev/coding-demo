@@ -6,6 +6,7 @@
 
 #define IDENTIFIER_SIZE     8
 #define BUFFER_SIZE         255
+#define NUM_CONSTANTS       26
 
 enum EntryType {CONST = 'c', LINE = 'l', VAR = 'v'};
 
@@ -32,6 +33,7 @@ struct Program {
     struct MissingRefListEntry  *missing_ref_list;
     word_t                      memory[MEMORY_SIZE];
     size_t                      instruction_ptr;
+    size_t                      constants_ptr;
     size_t                      stack_ptr;
 };
 
