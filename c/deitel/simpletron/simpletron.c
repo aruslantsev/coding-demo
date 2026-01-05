@@ -17,6 +17,7 @@ void simpletron_greet(void) {
     );
 }
 
+
 void soft_reset(struct Simpletron *simpletron) {
     simpletron->accumulator = 0;
     simpletron->instruction_counter = 0;
@@ -80,7 +81,10 @@ enum Status execute_operation(struct Simpletron *simpletron) {
         case READ:
             printf("%s", "<- ");
             if (user_input(&simpletron->memory[simpletron->operand]) != SUCCESS) {
-                printf("*** Invalid input. Should be in decimal range %d..%d ***\n", -MAX_VALUE + 1, MAX_VALUE - 1);
+                printf(
+                    "*** Invalid input. Should be in decimal range %d..%d ***\n",
+                    -MAX_VALUE + 1, MAX_VALUE - 1
+                );
                 return FAIL;
             }
             break;
@@ -110,13 +114,20 @@ enum Status execute_operation(struct Simpletron *simpletron) {
             simpletron->accumulator += simpletron->memory[simpletron->operand];
             break;
         case SUBTRACT:
-            simpletron->accumulator = simpletron->memory[simpletron->operand] - simpletron->accumulator;
+            simpletron->accumulator = (
+                simpletron->memory[simpletron->operand] - simpletron->accumulator
+            );
             break;
         case DIVIDE:
             if (simpletron->accumulator != 0) {
-                simpletron->accumulator = simpletron->memory[simpletron->operand] / simpletron->accumulator;
+                simpletron->accumulator = (
+                    simpletron->memory[simpletron->operand] / simpletron->accumulator
+                );
             } else {
-                printf("*** Attempt to divide by zero at %d ***\n", simpletron->instruction_counter - 1);
+                printf(
+                    "*** Attempt to divide by zero at %d ***\n",
+                    simpletron->instruction_counter - 1
+                );
                 puts(ERRMSG);
                 return FAIL;
             }
@@ -126,9 +137,14 @@ enum Status execute_operation(struct Simpletron *simpletron) {
             break;
         case REMAINDER:
             if (simpletron->accumulator != 0) {
-                simpletron->accumulator = simpletron->memory[simpletron->operand] % simpletron->accumulator;
+                simpletron->accumulator = (
+                    simpletron->memory[simpletron->operand] % simpletron->accumulator
+                );
             } else {
-                printf("*** Attempt to divide by zero at %d ***\n", simpletron->instruction_counter - 1);
+                printf(
+                    "*** Attempt to divide by zero at %d ***\n",
+                    simpletron->instruction_counter - 1
+                );
                 puts(ERRMSG);
                 return FAIL;
             }
@@ -170,8 +186,12 @@ enum Status execute_operation(struct Simpletron *simpletron) {
 
 void print_state(const struct Simpletron *simpletron) {
     printf("accumulator:\t\t%0*X\n", WORD_BITS / 4, (uword_t) simpletron->accumulator);
-    printf("instructionCounter:\t%*X\n", WORD_BITS / 4, (uword_t) simpletron->instruction_counter);
-    printf("instructionRegister:\t%0*X\n", WORD_BITS / 4, (uword_t) simpletron->instruction_register);
+    printf(
+        "instructionCounter:\t%*X\n", WORD_BITS / 4, (uword_t) simpletron->instruction_counter
+    );
+    printf(
+        "instructionRegister:\t%0*X\n", WORD_BITS / 4, (uword_t) simpletron->instruction_register
+    );
     printf("operationCode:\t\t%*X\n", WORD_BITS / 4, (uword_t) simpletron->operation_code);
     printf("operand:\t\t%*X\n", WORD_BITS / 4, (uword_t) simpletron->operand);
     puts("\nMEMORY:");
@@ -231,7 +251,12 @@ void read_file_sml(struct Simpletron *simpletron, const char *filename) {
     if (header == HEADER) { // binary file
         puts("Got binary Simpletron memory state");
         while (!feof(file)) {
-            result = fread(&simpletron->memory[simpletron->instruction_counter++], sizeof(word_t), 1, file);
+            result = fread(
+                &simpletron->memory[simpletron->instruction_counter++],
+                sizeof(word_t),
+                1,
+                file
+            );
             if (result == 0 && !feof(file)) puts("Error reading file");
         }
     } else {

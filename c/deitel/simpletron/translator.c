@@ -39,8 +39,16 @@ size_t search_entry(
         printf(", address %ld\n", lookup_list_pointer->address);
 #endif
         if (
-            (type == VAR && type == lookup_list_pointer->type && strcmp(lookup_list_pointer->identifier.name, identifier.name) == 0)
-            || ((type == CONST || type == LINE)  && type == lookup_list_pointer->type && lookup_list_pointer->identifier.value == identifier.value)
+            (
+                type == VAR
+                && type == lookup_list_pointer->type
+                && strcmp(lookup_list_pointer->identifier.name, identifier.name) == 0
+            )
+            || (
+                (type == CONST || type == LINE)
+                && type == lookup_list_pointer->type
+                && lookup_list_pointer->identifier.value == identifier.value
+            )
         ) {
 #ifdef DEBUG_LOOKUP_LIST
             printf("Found, address: %ld\n", lookup_list_pointer->address);
@@ -69,7 +77,9 @@ size_t add_entry(
         printf(" %d\n", identifier.value);
     }
 #endif
-    struct LookupListEntry *new_entry = (struct LookupListEntry *) malloc(sizeof(struct LookupListEntry));
+    struct LookupListEntry *new_entry = (struct LookupListEntry *) malloc(
+        sizeof(struct LookupListEntry)
+    );
     if (new_entry == NULL) {
         puts("Error. Can't allocate memory");
         exit(1);
@@ -137,11 +147,18 @@ size_t search_or_add_entry(
 
 void remember_missing_reference(struct Program *program, const int identifier) {
 #ifdef DEBUG_MISSING_REF_LIST
-    printf("Adding missing reference to row number %d for address %ld\n", identifier, program->instruction_ptr);
+    printf(
+        "Adding missing reference to row number %d for address %ld\n",
+        identifier, program->instruction_ptr
+    );
 #endif
-    struct MissingRefListEntry *entry = (struct MissingRefListEntry *) malloc(sizeof(struct MissingRefListEntry));
+    struct MissingRefListEntry *entry = (struct MissingRefListEntry *) malloc(
+        sizeof(struct MissingRefListEntry)
+    );
     struct MissingRefListEntry *missing_ref_list_ptr;
-    *entry = (struct MissingRefListEntry) {.label=identifier, .address=program->instruction_ptr, .next=NULL};
+    *entry = (struct MissingRefListEntry) {
+        .label=identifier, .address=program->instruction_ptr, .next=NULL
+    };
     if (program->missing_ref_list == NULL) {
         program->missing_ref_list = entry;
     } else {
@@ -200,8 +217,8 @@ bool check_integer(char value[]) {
 
 
 void strip(char s1[], char s2[]) {
-    /* Remove leading and trailing spaces and replace duplicated spaces in s2, save result in s1 */
-    /* s2 stays unmodified */
+    /* Remove leading and trailing spaces and replace duplicated spaces in s2,
+     * save result in s1. s2 remains unmodified */
     char buffer[BUFFER_SIZE];
     strcpy(buffer, s2);
     int i = 0, j = 0;
@@ -237,13 +254,18 @@ void parse_line(struct Program *program, char line[], const int line_number) {
     }
     identifier.value = atoi(token);
     if (identifier.value < 0) {
-        printf("Line number %d should be non-negative in line %d\n", identifier.value, line_number);
+        printf(
+            "Line number %d should be non-negative in line %d\n",
+            identifier.value, line_number
+        );
         printf("%s\n", line);
         exit(1);
     }
-
     if (search_entry(program, identifier, LINE) != -1) {
-        printf("Error: duplicated line number '%d' in line %d\n", identifier.value, line_number);
+        printf(
+            "Error: duplicated line number '%d' in line %d\n",
+            identifier.value, line_number
+        );
         printf("%s\n", line);
         exit(1);
     }
@@ -371,7 +393,10 @@ void parse_goto(struct Program *program, char line[], const int line_number) {
     }
     identifier.value = atoi(token);
     if (identifier.value < 0) {
-        printf("Line number %d should be non-negative in line %d\n", identifier.value, line_number);
+        printf(
+            "Line number %d should be non-negative in line %d\n",
+            identifier.value, line_number
+        );
         printf("%s\n", line);
         exit(1);
     }
@@ -479,7 +504,8 @@ void parse_if(struct Program *program, char line[], const int line_number) {
     strtok(buffer, " ");  // Skip line number
     char *token = strtok(NULL, " ");  // Skip keyword
 
-    strcpy(buffer, &line[token - buffer_start + strlen(token)]); // Copy from start of left expression
+    // Copy from start of left expression
+    strcpy(buffer, &line[token - buffer_start + strlen(token)]);
     strip(buffer, buffer);
 #ifdef DEBUG_PARSE
     printf("Parsing condition: %s\n", buffer);
@@ -506,7 +532,10 @@ void parse_if(struct Program *program, char line[], const int line_number) {
     }
     identifier.value = atoi(token);
     if (identifier.value < 0) {
-        printf("Line number %d should be non-negative in line %d\n", identifier.value, line_number);
+        printf(
+            "Line number %d should be non-negative in line %d\n",
+            identifier.value, line_number
+        );
         printf("%s\n", line);
         exit(1);
     }
@@ -520,12 +549,17 @@ void parse_if(struct Program *program, char line[], const int line_number) {
 #endif
     token = strtok(NULL, " ");
     if (token != NULL) {
-        printf("Error: multiple line numbers after IF..GOTO keyword in line %d\n", line_number);
+        printf(
+            "Error: multiple line numbers after IF..GOTO keyword in line %d\n",
+            line_number
+        );
         printf("%s\n", line);
         exit(1);
     }
 
-    char left_expression[BUFFER_SIZE], right_expression[BUFFER_SIZE], transformed_expression[BUFFER_SIZE];
+    char left_expression[BUFFER_SIZE];
+    char right_expression[BUFFER_SIZE];
+    char transformed_expression[BUFFER_SIZE];
     char *comparison_position;
     enum Comparison comparison;
 
@@ -549,21 +583,31 @@ void parse_if(struct Program *program, char line[], const int line_number) {
 
     strncpy(left_expression, expr, comparison_position - expr);
     left_expression[comparison_position - expr] = '\0';
-    strcpy(right_expression, comparison_position + ((comparison == LT || comparison == GT)? 1: 2));
+    strcpy(
+        right_expression,
+        comparison_position + ((comparison == LT || comparison == GT)? 1: 2)
+    );
 
     switch (comparison) {
         case LE:
         case LT:
         case EQ:
         case NE:
-            sprintf(transformed_expression, "(%s) - (%s)", left_expression, right_expression);
+            sprintf(
+                transformed_expression, "(%s) - (%s)", left_expression, right_expression
+            );
             break;
         case GE:
         case GT:
-            sprintf(transformed_expression, "(%s) - (%s)", right_expression, left_expression);
+            sprintf(
+                transformed_expression, "(%s) - (%s)", right_expression, left_expression
+            );
             break;
         default:
-            printf("Unknown comparison type in expression '%s' in line %d\n", expr, line_number);
+            printf(
+                "Unknown comparison type in expression '%s' in line %d\n",
+                expr, line_number
+            );
             exit(1);
             break;
     }
@@ -611,7 +655,10 @@ void parse_if(struct Program *program, char line[], const int line_number) {
             program->memory[program->instruction_ptr++] = instruction;
             break;
         default:
-            printf("Unknown comparison type in expression '%s' in line %d\n", expr, line_number);
+            printf(
+                "Unknown comparison type in expression '%s' in line %d\n",
+                expr, line_number
+            );
             exit(1);
             break;
     }

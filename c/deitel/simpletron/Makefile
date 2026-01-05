@@ -16,4 +16,4 @@ translator:
 	$(CC) $(CFLAGS) smlt.c translator.c simpletron.c evaluate.c -o smlt
 
 clean:
-	rm simpletron mktestprog smlt || echo Already clean
+	rm simpletron mktestprog smlt 2> /dev/null || echo Already clean

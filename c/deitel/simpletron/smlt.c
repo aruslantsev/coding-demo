@@ -71,7 +71,9 @@ int main(const int argc, char *argv[]) {
     FILE *sml_file = fopen(argv[2], "w");
     char char_instruction[WORD_BITS / 4 + 2];
     for (int instructionPtr = 0; instructionPtr < MEMORY_SIZE; instructionPtr++) {
-        sprintf(char_instruction, "%*X\n", WORD_BITS / 4, (uword_t) program.memory[instructionPtr]);
+        sprintf(
+            char_instruction, "%*X\n", WORD_BITS / 4, (uword_t) program.memory[instructionPtr]
+        );
         fprintf(sml_file, "%s", char_instruction);
     }
     fclose(sml_file);
