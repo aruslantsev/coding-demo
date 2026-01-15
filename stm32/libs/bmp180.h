@@ -1,6 +1,5 @@
 #ifndef BMP180_H
 #define BMP180_H
-#define STM32H5
 
 /*
  * BMP180 temperature and pressure sensor.
