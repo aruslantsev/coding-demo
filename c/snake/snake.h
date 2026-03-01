@@ -16,14 +16,14 @@ enum direction {
 
 
 struct point {
-    int x;
-    int y;
+    size_t x;
+    size_t y;
 };
 
 
 struct gameData {
-    int rows;
-    int cols;
+    size_t rows;
+    size_t cols;
     struct point *snake;
     size_t snakeLength;
     int numLifes;
@@ -31,10 +31,18 @@ struct gameData {
     enum direction currentDir;
     bool moving;
     struct point foodPosition;
+    int moveDelay;
+    int score;
+    int initMoveDelay;
+    double speedupFactor;
+    int speedupLength;
+    bool keyPressed;
 };
 
 
-void initGame(struct gameData *, const int, const int, const int, const int);
+void initGame(struct gameData *, const int, const int, const int, const int, const int, const double, const int);
+
+void resetGame(struct gameData *);
 
 void destroyGame(struct gameData *game);
 

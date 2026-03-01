@@ -1,28 +1,28 @@
 #include <errno.h>
-// #include <stdio.h>
-// #include <stdlib.h>
-#include <string.h>
+#include <stdio.h>
 #include <time.h>
+#include <signal.h>
 #include <stdbool.h>
 
 #include "snake.h"
 #include "terminal.h"
+#include "screen.h"
 
-/* 
-    TODOLIST 
-    1. Avoid direct write() calls. Write data to the buffer and flush buffer when refreshing the screen
-    2. Use variables or constants for border size, field size, etc. 
-    3. Check for screen size. If too low, don't start the game
-    4. Draw banner when paused, after start and after game end.
-    5. Ask when exiting
-*/
+/* Minimal screen size */
+#define MIN_SCREEN_ROWS     20
+#define MIN_SCREEN_COLS     40
 
+/* Interface parameters */
+#define SIDEBAR_WIDTH       13
+#define BORDER_THICKNESS    2
+
+/* Initial game parameters */
+#define MOVE_DELAY_MS       512
 #define INIT_LENGTH         3
 #define INIT_LIFES          3
-#define MOVE_DELAY_MS       512
 #define THRESHOLD_FOOD      10
-#define SIDEBAR_WIDTH       10
-#define BORDER_THICKNESS    1
+#define SPEEDUP_FACTOR      0.8
+
 
 struct screenConfig config;
 
@@ -53,14 +53,20 @@ void processKeypress(void) {
                         if (game.currentDir != LEFT) game.currentDir = RIGHT;
                         break;
                 }
+                game.keyPressed = true;
                 game.moving = true;
             }
+        } else {
+            clearScreen();
+            destroyGame(&game);
+            printf("Your final score: %d\r\n", game.score);
+            exit(EXIT_SUCCESS);
         }
     } else {
         if (c == 'q') {
             clearScreen();
-            showCursor();
             destroyGame(&game);
+            printf("Your final score: %d\r\n", game.score);
             exit(EXIT_SUCCESS);
         }; 
         if (c == 'p') {
@@ -70,105 +76,73 @@ void processKeypress(void) {
 }
 
 
-void drawBorder() {
-    write(STDOUT_FILENO, "\x1b[H", 3);
-    for (size_t row = 0; row < config.screenrows; row++) {
-        write(STDOUT_FILENO, (row == 0 || row == config.screenrows - 1) ? "+" : "|", 1);
-        for (size_t col = 0; col < config.screencols - 2 - SIDEBAR_WIDTH; col++) {
-            if (row == 0 || row == config.screenrows - 1) write(STDOUT_FILENO, "-", 1);
-            else write(STDOUT_FILENO, "\x1b[C", 3);
-        }
-        write(STDOUT_FILENO, (row == 0 || row == config.screenrows - 1) ? "+" : "|", 1);
-        if (row < config.screenrows - 1) write(STDOUT_FILENO, "\r\n", 2);
-    }
-}
-
-
-void drawSideBar() {
-    char buf[SIDEBAR_WIDTH];
-
-    write(STDOUT_FILENO, "\x1b[H", 3);
-    for (size_t row = 0; row < 2; row++) write(STDOUT_FILENO, "\x1b[B", 3);
-    for (size_t col = 0; col < config.screencols - SIDEBAR_WIDTH; col++) write(STDOUT_FILENO, "\x1b[C", 3);
-    sprintf(buf, " Lifes: %d", game.numLifes);
-    write(STDOUT_FILENO, buf, strlen(buf));
-
-    write(STDOUT_FILENO, "\x1b[H", 3);
-    for (size_t row = 0; row < 5; row++) write(STDOUT_FILENO, "\x1b[B", 3);
-    for (size_t col = 0; col < config.screencols - SIDEBAR_WIDTH; col++) write(STDOUT_FILENO, "\x1b[C", 3);
-    sprintf(buf, " Score: %d", game.snakeLength - INIT_LENGTH);
-    write(STDOUT_FILENO, buf, strlen(buf));
-}
-
-
-void drawSnake() {
-    for (size_t snakePtr = 0; snakePtr < game.snakeLength; snakePtr++) {
-        write(STDOUT_FILENO, "\x1b[H", 3);
-        write(STDOUT_FILENO, "\x1b[B", 3);
-        write(STDOUT_FILENO, "\x1b[C", 3);
-        for (size_t x = 0; x < game.snake[snakePtr].x; x++) write(STDOUT_FILENO, "\x1b[B", 3);
-        for (size_t y = 0; y < game.snake[snakePtr].y; y++) write(STDOUT_FILENO, "\x1b[C", 3);
-        write(STDOUT_FILENO, "0", 1);
-    }
-    write(STDOUT_FILENO, "\x1b[H", 3);
-    write(STDOUT_FILENO, "\x1b[B", 3);
-    write(STDOUT_FILENO, "\x1b[C", 3);
-    for (size_t x = 0; x < game.foodPosition.x; x++) write(STDOUT_FILENO, "\x1b[B", 3);
-    for (size_t y = 0; y < game.foodPosition.y; y++) write(STDOUT_FILENO, "\x1b[C", 3);
-    write(STDOUT_FILENO, "X", 1);
-    write(STDOUT_FILENO, "\x1b[H", 3);
-}
-
-
-void refreshScreen() {
+void termination_handler(int signum) {
     clearScreen();
-    drawBorder();
-    drawSnake();
-    drawSideBar();
-    write(STDOUT_FILENO, "\x1b[H", 3);
+    destroyGame(&game);
+    printf("Your final score: %d\r\n", game.score);
+    exit(EXIT_SUCCESS);
 }
 
 
 int main() {
+    struct outputBuffer obuf = OBUF_INIT;
+
     enableRawMode();
+    /* Restore screen config after recieving sigint */
+    if (signal(SIGINT, termination_handler) == SIG_ERR) {
+        printf("%s\r\n", "Can't catch SIGINT");
+        exit(EXIT_FAILURE);
+    }
+
+    /* Check for terminal size */
     if (getWindowSize(&config.screenrows, &config.screencols) == -1) die("getWindowSize");
+    config.borderThickness = BORDER_THICKNESS;
+    config.sidebarSize = SIDEBAR_WIDTH;
+    if (config.screencols < MIN_SCREEN_COLS || config.screenrows < MIN_SCREEN_ROWS) {
+        printf(
+            "Resolution: %ldx%ld symbols. Required: %dx%d symbols\r\n", 
+            config.screencols, 
+            config.screenrows, 
+            MIN_SCREEN_COLS, 
+            MIN_SCREEN_ROWS
+        );
+        exit(EXIT_FAILURE);
+    }
+
+    /* Initialize game */
     initGame(
         &game, 
         config.screenrows - (2 * BORDER_THICKNESS), 
         config.screencols - (2 * BORDER_THICKNESS) - SIDEBAR_WIDTH, 
         INIT_LENGTH, 
-        INIT_LIFES
+        INIT_LIFES,
+        MOVE_DELAY_MS,
+        SPEEDUP_FACTOR,
+        THRESHOLD_FOOD
     );
-    hideCursor();
-    refreshScreen();
 
-    int targetLength = INIT_LENGTH + THRESHOLD_FOOD;
+    
+    refreshScreen(&obuf, &config, &game);
 
     struct timespec start, end;
     long long time_diff_ms;
-    long long num_moves = 0;
-    int move_delay = MOVE_DELAY_MS;
     clock_gettime(CLOCK_MONOTONIC, &start);
 
     while (game.numLifes > 0) {
         processKeypress();
         clock_gettime(CLOCK_MONOTONIC, &end);
         time_diff_ms = (end.tv_sec - start.tv_sec) * 1000LL + (end.tv_nsec - start.tv_nsec) / 1000000LL;
-        if (time_diff_ms > move_delay) {
+        if (time_diff_ms > game.moveDelay || game.keyPressed) {
             if (game.moving) {
                 moveSnake(&game);
-                num_moves++;
-                if (game.snakeLength >= targetLength) {
-                    move_delay /= 2;
-                    targetLength += THRESHOLD_FOOD;
-                }
             }
-            refreshScreen();
-            clock_gettime(CLOCK_MONOTONIC, &start);
+            game.keyPressed = false;
+            refreshScreen(&obuf, &config, &game);
+            start = end;
         }
     }
     clearScreen();
-    showCursor();
     destroyGame(&game);
+    printf("Your final score: %d\r\n", game.score);
     return 0;
 }

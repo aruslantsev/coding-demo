@@ -8,8 +8,10 @@
 
 
 struct screenConfig {
-    int screenrows;
-    int screencols;
+    size_t screenrows;
+    size_t screencols;
+    size_t borderThickness;
+    size_t sidebarSize;
     struct termios orig_termios;
 };
 
@@ -24,4 +26,4 @@ void hideCursor(void);
 
 void showCursor(void);
 
-int getWindowSize(int *, int *);
+int getWindowSize(size_t *, size_t *);

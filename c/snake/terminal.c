@@ -1,13 +1,15 @@
 #include "terminal.h"
 
-static void disableRawMode() {
+
+static void disableRawMode(void) {
     extern struct screenConfig config;
     if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &config.orig_termios) == -1)
         die("tcsetattr");
+    showCursor();
 }
 
 
-void enableRawMode() {
+void enableRawMode(void) {
     extern struct screenConfig config;
     if (tcgetattr(STDIN_FILENO, &config.orig_termios) == -1) die("tcgetattr");
     atexit(disableRawMode);
@@ -15,10 +17,11 @@ void enableRawMode() {
     raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
     raw.c_oflag &= ~(OPOST);
     raw.c_cflag |= (CS8);
-    raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
+    raw.c_lflag &= ~(ECHO | ICANON | IEXTEN);
     raw.c_cc[VMIN] = 0;
     raw.c_cc[VTIME] = 1;
     if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1) die("tcsetattr");
+    hideCursor();
 }
 
 
@@ -40,11 +43,13 @@ void hideCursor(void) {
     write(STDOUT_FILENO, "\x1b[?25l", 6);
 }
 
+
 void showCursor(void) {
     write(STDOUT_FILENO, "\x1b[?25h", 6);
 }
 
-int getWindowSize(int *rows, int *cols) {
+
+int getWindowSize(size_t *rows, size_t *cols) {
     struct winsize ws;
     if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == -1 || ws.ws_col == 0) {
         return -1;
