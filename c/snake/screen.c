@@ -114,23 +114,24 @@ static void drawSideBar(struct outputBuffer *obuf, struct screenConfig *config, 
 
 
 static void drawSnake(struct outputBuffer *obuf, struct screenConfig *config, struct gameData *game) {
+    char buf[32];
     for (size_t snakePtr = 0; snakePtr < game->snakeLength; snakePtr++) {
-        obAppend(obuf, "\x1b[H", 3);
-        for (size_t border = 0; border < config->borderThickness; border++){
-            obAppend(obuf, "\x1b[B", 3);
-            obAppend(obuf, "\x1b[C", 3);
-        }
-        for (size_t x = 0; x < game->snake[snakePtr].x; x++) obAppend(obuf, "\x1b[B", 3);
-        for (size_t y = 0; y < game->snake[snakePtr].y; y++) obAppend(obuf, "\x1b[C", 3);
+        int n = snprintf(
+            buf, sizeof(buf), 
+            "\x1b[%zu;%zuH", 
+            game->snake[snakePtr].x + config->borderThickness + 1,
+            game->snake[snakePtr].y + config->borderThickness + 1
+        );
+        obAppend(obuf, buf, n);
         obAppend(obuf, "0", 1);
     }
-    obAppend(obuf, "\x1b[H", 3);
-    for (size_t border = 0; border < config->borderThickness; border++){
-        obAppend(obuf, "\x1b[B", 3);
-        obAppend(obuf, "\x1b[C", 3);
-    }
-    for (size_t x = 0; x < game->foodPosition.x; x++) obAppend(obuf, "\x1b[B", 3);
-    for (size_t y = 0; y < game->foodPosition.y; y++) obAppend(obuf, "\x1b[C", 3);
+    int n = snprintf(
+        buf, sizeof(buf), 
+        "\x1b[%zu;%zuH", 
+        game->foodPosition.x + config->borderThickness + 1,
+        game->foodPosition.y + config->borderThickness + 1
+    );
+    obAppend(obuf, buf, n);
     obAppend(obuf, "X", 1);
     obAppend(obuf, "\x1b[H", 3);
 }
