@@ -120,7 +120,6 @@ int main() {
         SPEEDUP_FACTOR,
         THRESHOLD_FOOD
     );
-
     
     refreshScreen(&obuf, &config, &game);
 
