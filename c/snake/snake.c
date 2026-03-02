@@ -62,8 +62,8 @@ void placeFood(struct gameData *game) {
 
 
 void moveSnake(struct gameData *game) {
-    size_t new_x = game->snake[0].x;
-    size_t new_y = game->snake[0].y;
+    int new_x = game->snake[0].x;
+    int new_y = game->snake[0].y;
     switch (game->currentDir) {
         case UP:
             new_x--;

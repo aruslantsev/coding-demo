@@ -16,8 +16,8 @@ enum direction {
 
 
 struct point {
-    size_t x;
-    size_t y;
+    int x;
+    int y;
 };
 
 
