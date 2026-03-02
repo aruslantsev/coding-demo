@@ -8,10 +8,12 @@
 #include "snake.h"
 
 
-#define OBUF_INIT {NULL, 0}
+#define OBUF_INIT {NULL, 0, 0}
+#define BUF_APPEND  1024
 
 struct outputBuffer {
     char *buffer;
+    int  bufsize;
     int  len;
 };
 

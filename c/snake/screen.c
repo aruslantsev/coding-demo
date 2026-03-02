@@ -1,20 +1,20 @@
 #include "screen.h"
 
 
-
 static void obAppend(struct outputBuffer *obuf, const char *s, int len) {
-  char *new = realloc(obuf->buffer, obuf->len + len);
-  if (new == NULL) return;
-  memcpy(&new[obuf->len], s, len);
-  obuf->buffer = new;
-  obuf->len += len;
+    if ((obuf->len + len) > obuf->bufsize) {
+        char *new = realloc(obuf->buffer, obuf->bufsize + BUF_APPEND);
+        if (new == NULL) exit(EXIT_FAILURE);
+        obuf->bufsize += BUF_APPEND;
+        obuf->buffer = new;
+    }
+    memcpy(&(obuf->buffer)[obuf->len], s, len);
+    obuf->len += len;
 }
 
 
 static void obFree(struct outputBuffer *obuf) {
-  free(obuf->buffer);
-  obuf->buffer = NULL;
-  obuf->len = 0;
+    obuf->len = 0;
 }
 
 
