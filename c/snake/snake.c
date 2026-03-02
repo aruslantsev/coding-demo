@@ -10,15 +10,17 @@ void resetGame(struct gameData *game) {
         game->snake[snakePtr] = (struct point) {.x = start_x, .y = start_y};
         start_x++;
     }
-    game->moving = false;
     game->moveDelay = game->initMoveDelay;
-    game->keyPressed = false;
     placeFood(game);
 }
 
 
 void initGame(struct gameData *game, const int rows, const int cols, const int snakeLength, const int numLifes, const int moveDelay, const double speedupFactor, const int speedupLength) {
     game->snake = (struct point *) malloc(sizeof(struct point) * (rows * cols + 1));
+    if (game->snake == NULL) {
+        printf("%s\r\n", "Can't allocate memory");
+        exit(EXIT_FAILURE);
+    }
     game->snakeLength = snakeLength;
     game->initLength = snakeLength;
     game->rows = rows;
@@ -29,7 +31,6 @@ void initGame(struct gameData *game, const int rows, const int cols, const int s
     game->moveDelay = moveDelay;
     game->speedupFactor = speedupFactor;
     game->speedupLength = speedupLength;
-    game->keyPressed = false;
     resetGame(game);
     srand(time(NULL));
 }
@@ -61,9 +62,10 @@ void placeFood(struct gameData *game) {
 }
 
 
-void moveSnake(struct gameData *game) {
+enum moveResult moveSnake(struct gameData *game) {
     int new_x = game->snake[0].x;
     int new_y = game->snake[0].y;
+    bool ate_food = false;
     switch (game->currentDir) {
         case UP:
             new_x--;
@@ -81,6 +83,7 @@ void moveSnake(struct gameData *game) {
             break;
     }
     if (new_x == game->foodPosition.x && new_y == game->foodPosition.y) {
+        ate_food = true;
         placeFood(game);
         game->snakeLength++;
         game->score++;
@@ -96,6 +99,7 @@ void moveSnake(struct gameData *game) {
     if (new_x < 0 || new_x >= game->rows || new_y < 0 || new_y >= game->cols) {
         game->numLifes -= 1;
         resetGame(game);
+        return MOVE_DEAD;
     }
     for (size_t snakePtr = 1; snakePtr < game->snakeLength; snakePtr++) {
         if (
@@ -104,6 +108,8 @@ void moveSnake(struct gameData *game) {
         ) {
             game->numLifes -= 1;
             resetGame(game);
+            return MOVE_DEAD;
         }
     }
+    return ate_food ? MOVE_ATE : MOVE_OK;
 }

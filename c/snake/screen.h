@@ -6,6 +6,7 @@
 
 #include "terminal.h"
 #include "snake.h"
+#include "input.h"
 
 
 #define OBUF_INIT {NULL, 0, 0}
@@ -17,4 +18,4 @@ struct outputBuffer {
     int  len;
 };
 
-void refreshScreen(struct outputBuffer *, struct screenConfig *, struct gameData *);
+void refreshScreen(struct outputBuffer *, struct screenConfig *, struct gameData *, struct userInput *);

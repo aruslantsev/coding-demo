@@ -7,6 +7,8 @@
 #include "snake.h"
 #include "terminal.h"
 #include "screen.h"
+#include "input.h"
+
 
 /* Minimal screen size */
 #define MIN_SCREEN_ROWS     20
@@ -23,57 +25,11 @@
 #define THRESHOLD_FOOD      10
 #define SPEEDUP_FACTOR      0.8
 
-
 struct screenConfig config;
 
 struct gameData game;
 
-
-void processKeypress(void) {
-    int nread;
-    char c;
-    if ((nread = read(STDIN_FILENO, &c, 1)) != 1) {
-        if (nread == -1 && errno != EAGAIN) die("read");
-    }
-    if (c == '\x1b') {
-        char seq[2];
-        if (read(STDIN_FILENO, &seq[0], 2) == 2) {
-            if (seq[0] == '[') {
-                switch (seq[1]) {
-                    case 'A': 
-                        if (game.currentDir != DOWN) game.currentDir = UP;
-                        break;
-                    case 'B': 
-                        if (game.currentDir != UP) game.currentDir = DOWN;
-                        break;
-                    case 'D': 
-                        if (game.currentDir != RIGHT) game.currentDir = LEFT;
-                        break;
-                    case 'C': 
-                        if (game.currentDir != LEFT) game.currentDir = RIGHT;
-                        break;
-                }
-                game.keyPressed = true;
-                game.moving = true;
-            }
-        } else {
-            clearScreen();
-            destroyGame(&game);
-            printf("Your final score: %d\r\n", game.score);
-            exit(EXIT_SUCCESS);
-        }
-    } else {
-        if (c == 'q') {
-            clearScreen();
-            destroyGame(&game);
-            printf("Your final score: %d\r\n", game.score);
-            exit(EXIT_SUCCESS);
-        }; 
-        if (c == 'p') {
-            game.moving = false;
-        }
-    }
-}
+struct userInput input;
 
 
 void termination_handler(int signum) {
@@ -81,6 +37,15 @@ void termination_handler(int signum) {
     destroyGame(&game);
     printf("Your final score: %d\r\n", game.score);
     exit(EXIT_SUCCESS);
+}
+
+
+bool isValidTurn(enum direction current, enum direction next) {
+    if (current == UP       && next == DOWN)    return false;
+    if (current == DOWN     && next == UP)      return false;
+    if (current == RIGHT    && next == LEFT)    return false;
+    if (current == LEFT     && next == RIGHT)   return false;
+    return true;
 }
 
 
@@ -121,22 +86,29 @@ int main() {
         THRESHOLD_FOOD
     );
     
-    refreshScreen(&obuf, &config, &game);
+    input.pauseToggled = true;
+    input.quitRequested = false;
+    refreshScreen(&obuf, &config, &game, &input);
 
     struct timespec start, end;
     long long time_diff_ms;
     clock_gettime(CLOCK_MONOTONIC, &start);
 
-    while (game.numLifes > 0) {
-        processKeypress();
+    while (game.numLifes > 0 && !input.quitRequested) {
+        processKeypress(&input);
         clock_gettime(CLOCK_MONOTONIC, &end);
         time_diff_ms = (end.tv_sec - start.tv_sec) * 1000LL + (end.tv_nsec - start.tv_nsec) / 1000000LL;
-        if (time_diff_ms > game.moveDelay || game.keyPressed) {
-            if (game.moving) {
-                moveSnake(&game);
+        if (time_diff_ms > game.moveDelay || input.actionTriggered) {
+            if (isValidTurn(game.currentDir, input.lastDirection)) {
+                game.currentDir = input.lastDirection;
             }
-            game.keyPressed = false;
-            refreshScreen(&obuf, &config, &game);
+            if (!input.pauseToggled) {
+                if (moveSnake(&game) == MOVE_DEAD) {
+                    input.pauseToggled = true;
+                    input.lastDirection = game.currentDir;
+                }
+            }
+            refreshScreen(&obuf, &config, &game, &input);
             start = end;
         }
     }

@@ -47,14 +47,14 @@ static void drawBorder(struct outputBuffer *obuf, struct screenConfig *config) {
 }
 
 
-static void drawSideBar(struct outputBuffer *obuf, struct screenConfig *config, struct gameData *game) {
+static void drawSideBar(struct outputBuffer *obuf, struct screenConfig *config, struct gameData *game, struct userInput *input) {
     char buf[config->sidebarSize];
 
     obAppend(obuf, "\x1b[H", 3);
     for (size_t row = 0; row < config->borderThickness; row++) obAppend(obuf, "\x1b[B", 3);
     for (size_t col = 0; col < config->screencols - config->sidebarSize; col++) obAppend(obuf, "\x1b[C", 3);
 
-    if (!game->moving) {
+    if (input->pauseToggled) {
         sprintf(buf, " %s ", "PAUSE");
     } else {
         sprintf(buf, " %s ", "");
@@ -137,11 +137,11 @@ static void drawSnake(struct outputBuffer *obuf, struct screenConfig *config, st
 }
 
 
-void refreshScreen(struct outputBuffer *obuf, struct screenConfig *config, struct gameData *game) {
+void refreshScreen(struct outputBuffer *obuf, struct screenConfig *config, struct gameData *game, struct userInput *input) {
     clearScreen();
     drawBorder(obuf, config);
     drawSnake(obuf, config, game);
-    drawSideBar(obuf, config, game);
+    drawSideBar(obuf, config, game, input);
     obAppend(obuf, "\x1b[H", 3);
     if (obuf->len > 0) {
         write(STDOUT_FILENO, obuf->buffer, obuf->len);

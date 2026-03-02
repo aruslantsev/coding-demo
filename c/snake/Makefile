@@ -3,7 +3,7 @@ CFLAGS 	:= -Wall -Wextra -O2 -MMD
 
 TARGET 	:= snake
 
-SRC 	:= main.c snake.c terminal.c screen.c
+SRC 	:= main.c snake.c terminal.c screen.c input.c
 OBJ 	:= $(SRC:.c=.o)
 DEP 	:= $(OBJ:.o=.d)
 
@@ -14,7 +14,7 @@ $(TARGET): $(OBJ)
 
 -include $(DEP)
 
-%.o: .%.c
+%.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
