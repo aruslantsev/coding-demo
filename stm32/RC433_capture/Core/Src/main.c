@@ -61,6 +61,50 @@ static void MX_TIM2_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+#define SYNC_MIN_US    8000   // Минимальная длина паузы синхронизации (мкс)
+#define SHORT_PULSE_MAX 600   // Максимальная длина "короткого" импульса (мкс)
+
+volatile uint32_t rx_code = 0;
+volatile uint8_t  bit_count = 0;
+volatile uint8_t  code_ready = 0;
+
+void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
+{
+    if (htim->Instance == TIM2 && htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1)
+    {
+        static uint32_t last_capture = 0;
+        uint32_t current_capture = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
+        
+        // Вычисляем длительность импульса с учетом переполнения
+        uint32_t diff = (current_capture >= last_capture) ? 
+                        (current_capture - last_capture) : 
+                        ((0xFFFFFFFF - last_capture) + current_capture + 1);
+        
+        last_capture = current_capture;
+        uint8_t pin_state = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_0);
+
+        // pin_state == GPIO_PIN_RESET означает, что закончился ВЫСОКИЙ уровень (импульс)
+        if (pin_state == GPIO_PIN_RESET) 
+        {
+            if (diff > SYNC_MIN_US) {
+                // Нашли синхроимпульс — сбрасываем приемник
+                bit_count = 0;
+                rx_code = 0;
+            } 
+            else if (bit_count < 24) {
+                rx_code <<= 1;
+                if (diff > SHORT_PULSE_MAX) {
+                    rx_code |= 1; // Длинный импульс = Логическая 1
+                }
+                bit_count++;
+
+                if (bit_count == 24) {
+                    code_ready = 1; // 24 бита успешно приняты!
+                }
+            }
+        }
+    }
+}
 
 /* USER CODE END 0 */
 
@@ -100,6 +144,8 @@ int main(void)
   MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
 
+  HAL_TIM_IC_Start_IT(&htim2, TIM_CHANNEL_1);
+
   /* USER CODE END 2 */
 
   /* Initialize leds */
@@ -125,6 +171,25 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+    if (code_ready) 
+    {
+        // 1. Сохраняем код в локальную переменную (чтобы прерывание не перезаписало его во время вывода)
+        uint32_t received_key = rx_code;
+
+        // 2. Сбрасываем флаг готовности, чтобы приготовиться к приему следующего нажатия
+        code_ready = 0;
+
+        // 3. Выводим полученный 24-битный код в HEX и DEC формате
+        // Вариант А: Вывод через ITM / SWO (ST-Link SWV Trace)
+        printf("Received Code: 0x%06X (%lu)\r\n", (unsigned int)received_key, received_key);
+
+        // Вариант Б: Вывод через UART3 (Виртуальный COM-порт Nucleo VCP)
+        /*
+        char buf[64];
+        int len = sprintf(buf, "Code: 0x%06X (%lu)\r\n", (unsigned int)received_key, received_key);
+        HAL_UART_Transmit(&huart3, (uint8_t*)buf, len, 100);
+        */
+    }
 
     /* USER CODE END WHILE */
 
