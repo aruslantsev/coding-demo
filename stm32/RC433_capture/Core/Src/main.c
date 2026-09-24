@@ -61,47 +61,87 @@ static void MX_TIM2_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-#define SYNC_MIN_US    8000   // Минимальная длина паузы синхронизации (мкс)
-#define SHORT_PULSE_MAX 600   // Максимальная длина "короткого" импульса (мкс)
+#include <string.h>
+#define SYNC_MIN_US       5000   // Пауза между посылками (в мкс). Дольше -> Конец пакета
+#define PULSE_BIT_1_MIN   600    // Если импульс HIGH > 600 мкс -> '1', иначе '0'
+#define MAX_BITS_LIMIT    128    // Максимальное кол-во бит (поддерживает 66-бит KeeLoq)
 
-volatile uint32_t rx_code = 0;
-volatile uint8_t  bit_count = 0;
-volatile uint8_t  code_ready = 0;
+// Буферы для передачи данных из Прерывания в main()
+volatile uint8_t rx_buffer[16];  // 16 байт * 8 = 128 бит
+volatile uint8_t rx_bit_count = 0;
+volatile uint8_t code_ready = 0;
+
+// Временные буферы внутри прерывания
+static uint8_t temp_buffer[16];
 
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 {
     if (htim->Instance == TIM2 && htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1)
     {
-        static uint32_t last_capture = 0;
-        uint32_t current_capture = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
-        
-        // Вычисляем длительность импульса с учетом переполнения
-        uint32_t diff = (current_capture >= last_capture) ? 
-                        (current_capture - last_capture) : 
-                        ((0xFFFFFFFF - last_capture) + current_capture + 1);
-        
-        last_capture = current_capture;
-        uint8_t pin_state = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_0);
+        static uint32_t rise_time = 0;
+        static uint32_t fall_time = 0;
+        static uint8_t  temp_bit_count = 0;
 
-        // pin_state == GPIO_PIN_RESET означает, что закончился ВЫСОКИЙ уровень (импульс)
-        if (pin_state == GPIO_PIN_RESET) 
+        // Проверяем полярность фронта по регистру CCER (0 = Rising, 1 = Falling)
+        uint8_t is_rising = ((TIM2->CCER & TIM_CCER_CC1P) == 0);
+
+        if (is_rising) 
         {
-            if (diff > SYNC_MIN_US) {
-                // Нашли синхроимпульс — сбрасываем приемник
-                bit_count = 0;
-                rx_code = 0;
-            } 
-            else if (bit_count < 24) {
-                rx_code <<= 1;
-                if (diff > SHORT_PULSE_MAX) {
-                    rx_code |= 1; // Длинный импульс = Логическая 1
-                }
-                bit_count++;
+            // === ВОСХОДЯЩИЙ ФРОНТ (0 -> 1) ===
+            uint32_t current_rise = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
+            
+            // Расчет длительности НИЗКОГО уровня (паузы)
+            uint32_t low_duration = (current_rise >= fall_time) ? 
+                                    (current_rise - fall_time) : 
+                                    ((0xFFFFFFFF - fall_time) + current_rise + 1);
+            
+            rise_time = current_rise;
 
-                if (bit_count == 24) {
-                    code_ready = 1; // 24 бита успешно приняты!
+            // Если низкий уровень длился дольше SYNC_MIN_US — это межпакетная пауза
+            if (low_duration > SYNC_MIN_US) 
+            {
+                if (temp_bit_count >= 8 && !code_ready) 
+                {
+                    memcpy((void*)rx_buffer, (void*)temp_buffer, sizeof(temp_buffer));
+                    rx_bit_count = temp_bit_count;
+                    code_ready = 1; // Сигнализируем в main()
                 }
+
+                // Сброс накопителей
+                temp_bit_count = 0;
+                memset(temp_buffer, 0, sizeof(temp_buffer));
             }
+
+            // Ждем спадающий фронт (1 -> 0)
+            __HAL_TIM_SET_CAPTUREPOLARITY(htim, TIM_CHANNEL_1, TIM_INPUTCHANNELPOLARITY_FALLING);
+        } 
+        else 
+        {
+            // === СПАДАЮЩИЙ ФРОНТ (1 -> 0) ===
+            uint32_t current_fall = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
+            
+            // Расчет длительности ВЫСОКОГО уровня (импульса)
+            uint32_t high_duration = (current_fall >= rise_time) ? 
+                                     (current_fall - rise_time) : 
+                                     ((0xFFFFFFFF - rise_time) + current_fall + 1);
+            
+            fall_time = current_fall;
+
+            // Накапливаем биты в массив
+            if (temp_bit_count < MAX_BITS_LIMIT) 
+            {
+                uint8_t byte_idx = temp_bit_count / 8;
+                uint8_t bit_idx  = 7 - (temp_bit_count % 8); // Старший бит вперед
+
+                if (high_duration > PULSE_BIT_1_MIN) {
+                    temp_buffer[byte_idx] |= (1 << bit_idx); // Логическая '1'
+                }
+
+                temp_bit_count++;
+            }
+
+            // Ждем восходящий фронт (0 -> 1)
+            __HAL_TIM_SET_CAPTUREPOLARITY(htim, TIM_CHANNEL_1, TIM_INPUTCHANNELPOLARITY_RISING);
         }
     }
 }
@@ -169,26 +209,26 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  printf("Hello from H563ZI\r\n");
   while (1)
   {
     if (code_ready) 
     {
-        // 1. Сохраняем код в локальную переменную (чтобы прерывание не перезаписало его во время вывода)
-        uint32_t received_key = rx_code;
+        // Копируем данные для защиты от перезаписи в прерывании
+        uint8_t bits = rx_bit_count;
+        uint8_t bytes_to_print = (bits + 7) / 8;
+        uint8_t local_buf[16];
+        memcpy(local_buf, (void*)rx_buffer, bytes_to_print);
 
-        // 2. Сбрасываем флаг готовности, чтобы приготовиться к приему следующего нажатия
+        // Сбрасываем флаг приема
         code_ready = 0;
 
-        // 3. Выводим полученный 24-битный код в HEX и DEC формате
-        // Вариант А: Вывод через ITM / SWO (ST-Link SWV Trace)
-        printf("Received Code: 0x%06X (%lu)\r\n", (unsigned int)received_key, received_key);
-
-        // Вариант Б: Вывод через UART3 (Виртуальный COM-порт Nucleo VCP)
-        /*
-        char buf[64];
-        int len = sprintf(buf, "Code: 0x%06X (%lu)\r\n", (unsigned int)received_key, received_key);
-        HAL_UART_Transmit(&huart3, (uint8_t*)buf, len, 100);
-        */
+        // Выводим результат
+        printf("Принято бит: %3d | HEX: 0x", bits);
+        for (int i = 0; i < bytes_to_print; i++) {
+            printf("%02X", local_buf[i]);
+        }
+        printf("\r\n");
     }
 
     /* USER CODE END WHILE */
