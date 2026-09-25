@@ -55,6 +55,105 @@ static void MX_GPIO_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
+// Button 1. Bits:  78 | HEX: 0x00053A9B9F40729E5370
+// Button 2. Bits:  78 | HEX: 0x00042F539F40729E53E0
+// Button 3. Bits:  78 | HEX: 0x0005020D9F40729E53B0
+// Button 4. Bits:  78 | HEX: 0x000FDBF59F40729E53D0
+
+const uint8_t REMOTE_BUTTON_1[10] = {0x00, 0x05, 0x3A, 0x9B, 0x9F, 0x40, 0x72, 0x9E, 0x53, 0x70};
+const uint8_t REMOTE_BUTTON_2[10] = {0x00, 0x04, 0x2F, 0x53, 0x9F, 0x40, 0x72, 0x9E, 0x53, 0xE0};
+const uint8_t REMOTE_BUTTON_3[10] = {0x00, 0x05, 0x02, 0x0D, 0x9F, 0x40, 0x72, 0x9E, 0x53, 0xB0};
+const uint8_t REMOTE_BUTTON_4[10] = {0x00, 0x0F, 0xDB, 0xF5, 0x9F, 0x40, 0x72, 0x9E, 0x53, 0xD0};
+
+#define TX_PORT       GPIOB
+#define TX_PIN        GPIO_PIN_11
+
+// Длительность элементарного импульса в микросекундах (300-400 мкс)
+#define TE_US         350
+
+#define PACKET_REPEATS 5
+
+static inline void delay_us(uint32_t us) {
+    uint32_t count = us * (SystemCoreClock / 1000000U) / 6U;
+    while (count--) {
+        __NOP();
+    }
+}
+
+static void send_bit_1(void) {
+    HAL_GPIO_WritePin(TX_PORT, TX_PIN, GPIO_PIN_SET);
+    delay_us(TE_US * 2);
+    HAL_GPIO_WritePin(TX_PORT, TX_PIN, GPIO_PIN_RESET);
+    delay_us(TE_US);
+}
+
+static void send_bit_0(void) {
+    HAL_GPIO_WritePin(TX_PORT, TX_PIN, GPIO_PIN_SET);
+    delay_us(TE_US);
+    HAL_GPIO_WritePin(TX_PORT, TX_PIN, GPIO_PIN_RESET);
+    delay_us(TE_US * 2);
+}
+
+static void send_preamble(void) {
+    HAL_GPIO_WritePin(TX_PORT, TX_PIN, GPIO_PIN_SET);
+    delay_us(TE_US);
+    HAL_GPIO_WritePin(TX_PORT, TX_PIN, GPIO_PIN_RESET);
+    delay_us(TE_US * 30); // Межкадровый интервал
+}
+
+static void send_packet_78bit(const uint8_t *data) {
+    send_preamble();
+
+    for (int i = 0; i < 78; i++) {
+        uint8_t byte_idx = i / 8;
+        uint8_t bit_idx  = 7 - (i % 8); // Начиная со старшего бита (MSB first)
+
+        if ((data[byte_idx] >> bit_idx) & 0x01) {
+            send_bit_1();
+        } else {
+            send_bit_0();
+        }
+    }
+
+    // Принудительно сбрасываем пин в 0 по окончании пакета
+    HAL_GPIO_WritePin(TX_PORT, TX_PIN, GPIO_PIN_RESET);
+}
+
+void Transmit_Remote_Signal(void) {
+    for (int repeat = 0; repeat < PACKET_REPEATS; repeat++) {
+        send_packet_78bit(REMOTE_BUTTON_1);
+
+        // Межпакетная пауза ~12 мс (аналогично оригинальному пульту)
+        HAL_Delay(12);
+    }
+}
+
+void Enter_Standby_Mode(void) {
+    // 1. Включаем тактирование блока PWR
+    __HAL_RCC_PWR_CLK_ENABLE();
+
+    // 2. Очищаем ВСЕ флаги питания (Wakeup flag & Standby flag)
+    __HAL_PWR_CLEAR_FLAG(PWR_FLAG_WU | PWR_FLAG_SB);
+
+    // 3. Активируем пин пробуждения PA0 (WKUP1)
+    HAL_PWR_EnableWakeUpPin(PWR_WAKEUP_PIN1);
+
+    // 4. Сбрасываем пин передатчика перед сном
+    HAL_GPIO_WritePin(TX_PORT, TX_PIN, GPIO_PIN_RESET);
+
+    // 5. Ждем, пока пользователь отпустит кнопку на PA0!
+    // (Если кнопка нажата, PA0 = 1. Ждем, пока станет 0, чтобы не "зациклить" просыпание)
+    while (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_0) == GPIO_PIN_SET) {
+        HAL_Delay(10);
+    }
+
+    // 6. Повторно очищаем флаги после отпускания кнопки
+    __HAL_PWR_CLEAR_FLAG(PWR_FLAG_WU);
+
+    // 7. Входим в Standby
+    HAL_PWR_EnterSTANDBYMode();
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -88,12 +187,22 @@ int main(void)
   MX_GPIO_Init();
   /* USER CODE BEGIN 2 */
 
+  Transmit_Remote_Signal(); // 4. СРАЗУ отправляем пачку из 5 пакетов
+
+  HAL_Delay(10);         // 5. Небольшая задержка
+  Enter_Standby_Mode();  // 6. Снова "выключаемся" в Standby (2–3 мкА)
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+    // Transmit_Remote_Signal();
+    //
+    // // Пауза 1 секунда между пачками
+    // HAL_Delay(100);
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
